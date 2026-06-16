@@ -131,10 +131,71 @@ export default function Toolbar({
       {/* Top row: Brand & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 overflow-hidden">
         {/* Brand */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-orange-500 flex items-center justify-center text-white font-bold shadow-md shadow-orange-500/20">
-            <span className="text-lg">V</span>
-          </div>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <svg className="w-8 h-8 drop-shadow-md animate-fade-in" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="logo-back-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#EA580C" />
+                <stop offset="100%" stopColor="#9A3412" />
+              </linearGradient>
+              <linearGradient id="logo-mid-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#F97316" />
+                <stop offset="100%" stopColor="#EA580C" />
+              </linearGradient>
+              <linearGradient id="logo-front-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FED7AA" />
+                <stop offset="100%" stopColor="#F97316" />
+              </linearGradient>
+              <linearGradient id="logo-fold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FFEDD5" />
+                <stop offset="100%" stopColor="#FDBA74" />
+              </linearGradient>
+            </defs>
+
+            {/* Back sheet (Layer 3) */}
+            <rect x="24" y="24" width="62" height="62" rx="14" fill="url(#logo-back-grad)" opacity="0.85" />
+
+            {/* Middle sheet (Layer 2) */}
+            <rect x="14" y="14" width="62" height="62" rx="14" fill="url(#logo-mid-grad)" />
+
+            {/* Front sheet (Layer 1) with folded top right corner */}
+            <path
+              d="M 4 18 
+                 C 4 10.27, 10.27 4, 18 4 
+                 L 36 4 
+                 L 66 34 
+                 L 66 52 
+                 C 66 59.73, 59.73 66, 52 66 
+                 L 18 66 
+                 C 10.27 66, 4 59.73, 4 52 
+                 Z"
+              fill="url(#logo-front-grad)"
+            />
+
+            {/* Fold flap (folded down corner) */}
+            <path
+              d="M 36 4 
+                 C 36 4, 46 20, 66 34 
+                 L 46 34 
+                 C 38.27 34, 36 31.73, 36 24 
+                 Z"
+              fill="url(#logo-fold-grad)"
+            />
+
+            {/* Grid Lines on the front sheet */}
+            <g stroke="#FFF" strokeWidth="2" strokeLinecap="round" opacity="0.4">
+              {/* Vertical lines */}
+              <line x1="20" y1="14" x2="20" y2="56" />
+              <line x1="36" y1="36" x2="36" y2="56" />
+              <line x1="51" y1="36" x2="51" y2="56" />
+
+              {/* Horizontal lines */}
+              <line x1="10" y1="20" x2="32" y2="20" />
+              <line x1="10" y1="32" x2="60" y2="32" />
+              <line x1="10" y1="44" x2="60" y2="44" />
+              <line x1="10" y1="56" x2="60" y2="56" />
+            </g>
+          </svg>
           <div>
             <h1 className="text-md font-semibold tracking-tight leading-none animate-fade-in">
               Vortex<span className="text-orange-500">Sheets</span>

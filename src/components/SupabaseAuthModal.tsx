@@ -27,6 +27,8 @@ interface SupabaseAuthModalProps {
   currentSheetsData: any; // The payload structure from App state
   onLoadSheetsFromCloud: (cloudSheets: any[], docId: string, docName: string) => void;
   onSaveTrigger: () => Promise<void>; // Prop to trigger manual sync from App
+  activeCloudFileId?: string | null;
+  onClearActiveCloudFile?: () => void;
 }
 
 export default function SupabaseAuthModal({
@@ -35,7 +37,9 @@ export default function SupabaseAuthModal({
   isDarkMode,
   currentSheetsData,
   onLoadSheetsFromCloud,
-  onSaveTrigger
+  onSaveTrigger,
+  activeCloudFileId = null,
+  onClearActiveCloudFile
 }: SupabaseAuthModalProps) {
   // Authentication states
   const [session, setSession] = useState<any>(null);
@@ -224,11 +228,45 @@ export default function SupabaseAuthModal({
   };
 
   // Load spreadsheet state from Supabase to current app state
-  const handleLoadSheetFromCloud = (row: any) => {
-    if (!row || !row.sheets_data) return;
-    if (window.confirm(`Swap current spreadsheet workspace with "${row.name}"? Unsaved working changes will be overwritten.`)) {
-      onLoadSheetsFromCloud(row.sheets_data, row.id, row.name);
+  const handleLoadSheetFromCloud = async (row: any) => {
+    if (!row || !row.id || !session) return;
+    if (!window.confirm(`Swap current spreadsheet workspace with "${row.name}"? Unsaved working changes will be overwritten.`)) {
+      return;
+    }
+
+    setCloudLoading(true);
+    setAuthError(null);
+    setAuthSuccess(null);
+
+    try {
+      const { data, error } = await supabase
+        .from('vortex_sheets')
+        .select('*')
+        .eq('id', row.id)
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (error) throw error;
+      if (!data || !data.sheets_data) {
+        throw new Error('No spreadsheet sheets_data payload found for this backup.');
+      }
+
+      let payload = data.sheets_data;
+      if (typeof payload === 'string') {
+        try {
+          payload = JSON.parse(payload);
+        } catch (e) {
+          console.error('Failed to parse sheets_data field in handleLoadSheetFromCloud:', e);
+        }
+      }
+
+      onLoadSheetsFromCloud(payload, data.id, data.name);
+      setAuthSuccess(`Loaded "${data.name}" successfully!`);
       onClose();
+    } catch (err: any) {
+      setAuthError(err.message || 'Error occurred loading spreadsheet from cloud.');
+    } finally {
+      setCloudLoading(false);
     }
   };
 
@@ -249,6 +287,12 @@ export default function SupabaseAuthModal({
 
       if (error) throw error;
       setAuthSuccess(`"${name}" deleted from cloud storage.`);
+      
+      // Clear current file tracking if deleted
+      if (activeCloudFileId === docId && onClearActiveCloudFile) {
+        onClearActiveCloudFile();
+      }
+      
       fetchCloudSheets(session.user.id);
     } catch (err: any) {
       setAuthError(err.message || 'Error deleting sheet.');

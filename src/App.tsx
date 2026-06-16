@@ -134,11 +134,20 @@ export default function App() {
   const handleLoadSheetsFromCloud = (payload: any, docId: string, docName: string) => {
     if (!payload) return;
 
-    const targetSheets = Array.isArray(payload) ? payload : payload.sheets;
-    const targetChartConfig = !Array.isArray(payload) ? payload.chartConfig : null;
+    let parsedPayload = payload;
+    if (typeof parsedPayload === 'string') {
+      try {
+        parsedPayload = JSON.parse(parsedPayload);
+      } catch (e) {
+        console.error('Failed parsing payload in handleLoadSheetsFromCloud:', e);
+      }
+    }
+
+    const targetSheets = Array.isArray(parsedPayload) ? parsedPayload : parsedPayload.sheets;
+    const targetChartConfig = !Array.isArray(parsedPayload) ? parsedPayload.chartConfig : null;
 
     if (targetSheets && targetSheets.length > 0) {
-      setSheets(targetSheets);
+      setSheets([...targetSheets]); // Clone target array to force deep references re-render
       setActiveSheetId(targetSheets[0].id);
       setActiveCloudFileId(docId);
       setActiveCloudFileName(docName);
@@ -152,7 +161,7 @@ export default function App() {
       setEditingCell(null);
       setEditValue('');
       setFilterQuery(null);
-      setRowOrder(Array.from({ length: DEFAULT_ROW_COUNT }, (_, i) => i + 1));
+      setRowOrder(Array.from({ length: targetSheets[0].data?.rowCount || DEFAULT_ROW_COUNT }, (_, i) => i + 1));
 
       // Restore chart configurations if active
       if (targetChartConfig) {
@@ -188,7 +197,15 @@ export default function App() {
 
         if (data && data.length > 0) {
           const latestDoc = data[0];
-          handleLoadSheetsFromCloud(latestDoc.sheets_data, latestDoc.id, latestDoc.name);
+          let sheetsPayload = latestDoc.sheets_data;
+          if (typeof sheetsPayload === 'string') {
+            try {
+              sheetsPayload = JSON.parse(sheetsPayload);
+            } catch (e) {
+              console.error('Failed to parse latest system sheets_data text:', e);
+            }
+          }
+          handleLoadSheetsFromCloud(sheetsPayload, latestDoc.id, latestDoc.name);
           console.log(`Auto-loaded latest cloud document "${latestDoc.name}" on sign-in.`);
         }
       } catch (e) {
@@ -798,8 +815,63 @@ export default function App() {
         isDarkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-gray-50 text-zinc-800'
       }`}>
         <div className="flex flex-col items-center text-center">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20 mb-4 animate-pulse">
-            <span className="font-sans font-black text-2xl text-white">V</span>
+          <div className="w-16 h-16 mb-4 animate-pulse">
+            <svg className="w-full h-full drop-shadow-lg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="load-logo-back-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#EA580C" />
+                  <stop offset="100%" stopColor="#9A3412" />
+                </linearGradient>
+                <linearGradient id="load-logo-mid-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#F97316" />
+                  <stop offset="100%" stopColor="#EA580C" />
+                </linearGradient>
+                <linearGradient id="load-logo-front-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#FED7AA" />
+                  <stop offset="100%" stopColor="#F97316" />
+                </linearGradient>
+                <linearGradient id="load-logo-fold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#FFEDD5" />
+                  <stop offset="100%" stopColor="#FDBA74" />
+                </linearGradient>
+              </defs>
+
+              <rect x="24" y="24" width="62" height="62" rx="14" fill="url(#load-logo-back-grad)" opacity="0.85" />
+              <rect x="14" y="14" width="62" height="62" rx="14" fill="url(#load-logo-mid-grad)" />
+
+              <path
+                d="M 4 18 
+                   C 4 10.27, 10.27 4, 18 4 
+                   L 36 4 
+                   L 66 34 
+                   L 66 52 
+                   C 66 59.73, 59.73 66, 52 66 
+                   L 18 66 
+                   C 10.27 66, 4 59.73, 4 52 
+                   Z"
+                fill="url(#load-logo-front-grad)"
+              />
+
+              <path
+                d="M 36 4 
+                   C 36 4, 46 20, 66 34 
+                   L 46 34 
+                   C 38.27 34, 36 31.73, 36 24 
+                   Z"
+                fill="url(#load-logo-fold-grad)"
+              />
+
+              <g stroke="#FFF" strokeWidth="2" strokeLinecap="round" opacity="0.4">
+                <line x1="20" y1="14" x2="20" y2="56" />
+                <line x1="36" y1="36" x2="36" y2="56" />
+                <line x1="51" y1="36" x2="51" y2="56" />
+
+                <line x1="10" y1="20" x2="32" y2="20" />
+                <line x1="10" y1="32" x2="60" y2="32" />
+                <line x1="10" y1="44" x2="60" y2="44" />
+                <line x1="10" y1="56" x2="60" y2="56" />
+              </g>
+            </svg>
           </div>
           <p className="text-xs font-semibold tracking-wide">Securing cloud environment & session...</p>
           <span className="text-[9px] font-mono mt-1 text-zinc-400">VortexSheets Cloud Sync v4.0</span>
@@ -960,6 +1032,11 @@ export default function App() {
               }
             }}
             onLoadSheetsFromCloud={handleLoadSheetsFromCloud}
+            activeCloudFileId={activeCloudFileId}
+            onClearActiveCloudFile={() => {
+              setActiveCloudFileId(null);
+              setActiveCloudFileName(null);
+            }}
             onSaveTrigger={async () => {
               if (isSupabaseConfigured && supabaseUser && activeCloudFileId) {
                 try {
