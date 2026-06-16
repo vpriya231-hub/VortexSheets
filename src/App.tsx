@@ -27,12 +27,6 @@ import HelpModal from './components/HelpModal';
 import DataVisualizer from './components/DataVisualizer';
 import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
 import SupabaseAuthModal from './components/SupabaseAuthModal';
-import {
-  initializeAdMob,
-  showBannerAd,
-  triggerInterstitialAd,
-  isNativePlatform
-} from './utils/admob';
 
 
 const DEFAULT_ROW_COUNT = 1000;
@@ -125,19 +119,6 @@ export default function App() {
   const [activeCloudFileId, setActiveCloudFileId] = useState<string | null>(null);
   const [activeCloudFileName, setActiveCloudFileName] = useState<string | null>(null);
   const [supabaseUser, setSupabaseUser] = useState<any>(null);
-
-  // AdMob integration state managers
-  const [isAdMobBannerVisible, setIsAdMobBannerVisible] = useState<boolean>(true);
-  const [isAdMobInterstitialOpen, setIsAdMobInterstitialOpen] = useState<boolean>(false);
-
-  // Initialize AdMob on mount and trigger first banner display
-  useEffect(() => {
-    const startAdServices = async () => {
-      await initializeAdMob();
-      await showBannerAd((visible) => setIsAdMobBannerVisible(visible));
-    };
-    startAdServices();
-  }, []);
 
   // Sorting and Filtering states
   const [rowOrder, setRowOrder] = useState<number[]>(() => {
@@ -579,11 +560,6 @@ export default function App() {
     });
 
     XLSX.writeFile(workbook, 'VortexSheets_All_Tabs_Export.xlsx');
-
-    // Seamlessly trigger AdMob Interstitial Ad right after workbook download completes
-    triggerInterstitialAd(() => {
-      setIsAdMobInterstitialOpen(true);
-    });
   };
 
 
@@ -846,76 +822,6 @@ export default function App() {
           }
         }}
       />
-
-      {/* Simulated Google AdMob Banner Ad (Used for seamless browser previews) */}
-      {isAdMobBannerVisible && !isNativePlatform() && (
-        <div className="shrink-0 h-[50px] bg-gray-50 dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 flex items-center justify-between px-4 text-xs select-none">
-          <div className="flex items-center gap-2">
-            <span className="bg-orange-500/10 text-orange-500 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">AdMob Ad</span>
-            <span className="font-mono text-zinc-500 dark:text-zinc-400 font-medium">Google AdMob Test Partner Banner Ad</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:inline text-[10px] text-zinc-400 font-mono">Unit ID: ca-app-pub-3940256099942544/6300978111</span>
-            <button 
-              onClick={() => setIsAdMobBannerVisible(false)}
-              className="w-5 h-5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors focus:outline-none"
-              title="Close Ad"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Simulated Google AdMob Interstitial Full-Screen Ad */}
-      {isAdMobInterstitialOpen && (
-        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-zinc-800 text-white rounded-2xl w-full max-w-sm p-6 relative overflow-hidden shadow-2xl flex flex-col items-center text-center">
-            
-            {/* Top Status Indicators */}
-            <div className="w-full flex justify-between items-center mb-6">
-              <span className="bg-orange-500/20 text-orange-400 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded">
-                AdMob Sponsored Interstitial
-              </span>
-              <button 
-                onClick={() => setIsAdMobInterstitialOpen(false)}
-                className="w-6 h-6 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white transition-all focus:outline-none text-xs"
-                title="Dismiss and Resume"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* App Branding Creative representation */}
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20 mb-4">
-              <span className="font-sans font-black text-3xl text-white">V</span>
-            </div>
-
-            <div className="mb-6">
-              <h4 className="text-base font-bold tracking-tight text-white mb-1">VortexCloud® Database Cluster 4.0</h4>
-              <p className="text-zinc-400 text-xs leading-relaxed max-w-[240px]">
-                Scale your sheets real-time calculations directly to high-throughput Cloud Spanner instances instantly.
-              </p>
-            </div>
-
-            {/* Simulated Call to Action button */}
-            <a 
-              href="https://ai.studio/build" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="w-full py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 font-bold text-xs rounded-xl shadow-lg shadow-orange-500/15 hover:shadow-orange-500/30 active:translate-y-px transition-all flex items-center justify-center gap-1.5 focus:outline-none"
-            >
-              Deploy Grid Cluster 🚀
-            </a>
-
-            {/* Simulated technical details */}
-            <div className="w-full mt-6 pt-4 border-t border-zinc-900/80 flex justify-between items-center text-[9px] text-zinc-500 font-mono">
-              <span>Class: INTERSTITIAL</span>
-              <span>ID: ...1033173712</span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
