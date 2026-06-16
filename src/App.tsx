@@ -122,6 +122,7 @@ export default function App() {
   const [activeCloudFileId, setActiveCloudFileId] = useState<string | null>(null);
   const [activeCloudFileName, setActiveCloudFileName] = useState<string | null>(null);
   const [supabaseUser, setSupabaseUser] = useState<any>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(isSupabaseConfigured);
 
   // Sorting and Filtering states
   const [rowOrder, setRowOrder] = useState<number[]>(() => {
@@ -200,6 +201,10 @@ export default function App() {
       if (session?.user) {
         fetchLatestUserSheet(session.user.id);
       }
+      setIsAuthChecking(false);
+    }).catch((e) => {
+      console.error(e);
+      setIsAuthChecking(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -211,6 +216,7 @@ export default function App() {
         setActiveCloudFileId(null);
         setActiveCloudFileName(null);
       }
+      setIsAuthChecking(false);
     });
 
     return () => subscription.unsubscribe();
@@ -511,7 +517,7 @@ export default function App() {
     document.body.removeChild(link);
   };
 
-  // XLSX Exporter using SheetJS - exports all spreadsheet tabs beautifully!
+  // XLSX Exporter using SheetJS - exports all spreadsheet tabs beautifully with Android WebView support!
   const handleExportXLSX = () => {
     const workbook = XLSX.utils.book_new();
 
@@ -562,7 +568,46 @@ export default function App() {
       XLSX.utils.book_append_sheet(workbook, ws, sheet.name);
     });
 
-    XLSX.writeFile(workbook, 'VortexSheets_All_Tabs_Export.xlsx');
+    try {
+      const filename = 'VortexSheets_All_Tabs_Export.xlsx';
+
+      // 1. Generate Base64 Data URI - Highly compatible with Android WebView download interceptors
+      const b64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+      const dataUri = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${b64}`;
+
+      const link = document.createElement('a');
+      link.href = dataUri;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // 2. Also execute standard blob creation and fallback to ensure compliance on traditional browsers
+      setTimeout(() => {
+        try {
+          const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+          const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          const objectUrl = URL.createObjectURL(blob);
+          
+          const backupLink = document.createElement('a');
+          backupLink.href = objectUrl;
+          backupLink.download = filename;
+          document.body.appendChild(backupLink);
+          backupLink.click();
+          document.body.removeChild(backupLink);
+
+          // Clear resource
+          setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        } catch (backupErr) {
+          console.warn('Standard blob backup trigger was bypassed:', backupErr);
+        }
+      }, 100);
+
+    } catch (e: any) {
+      console.error('Export handling error:', e);
+      // Absolute fallback if custom streams fail
+      XLSX.writeFile(workbook, 'VortexSheets_All_Tabs_Export.xlsx');
+    }
   };
 
 
@@ -618,6 +663,92 @@ export default function App() {
     handleSwitchSheet(nextActiveId);
   };
 
+  // Create a brand new fresh sheet workspace locally or in the Supabase database
+  const handleCreateNewSpreadsheet = async () => {
+    if (window.confirm('Are you sure you want to start a brand new spreadsheet? Your current work will remain saved in its respective cloud file.')) {
+      const blankSheets = [
+        {
+          id: 'sheet-1',
+          name: 'Sheet 1',
+          data: createEmptySheetData(),
+        }
+      ];
+
+      if (isSupabaseConfigured && supabaseUser) {
+        const sheetName = window.prompt("Enter a name for the new cloud spreadsheet:", "New Spreadsheet") || "New Spreadsheet";
+        if (sheetName) {
+          try {
+            const newDocPayload = {
+              sheets: blankSheets,
+              chartConfig: {
+                isVisualizerOpen: false,
+                rangeInput: "",
+                chartType: "bar",
+                paletteName: "vortex",
+                chartTitle: "My Vortex Chart"
+              }
+            };
+
+            const { data: insertList, error } = await supabase
+              .from('vortex_sheets')
+              .insert([
+                {
+                  user_id: supabaseUser.id,
+                  name: sheetName.trim(),
+                  sheets_data: newDocPayload,
+                }
+              ])
+              .select();
+
+            if (error) throw error;
+
+            if (insertList && insertList.length > 0) {
+              const createdDoc = insertList[0];
+              setActiveCloudFileId(createdDoc.id);
+              setActiveCloudFileName(createdDoc.name);
+              setSheets(blankSheets);
+              setActiveSheetId(blankSheets[0].id);
+              setSelection({
+                startCell: 'A1',
+                endCell: 'A1',
+                activeCell: 'A1',
+              });
+              setEditingCell(null);
+              setEditValue('');
+              setIsVisualizerOpen(false);
+              setFilterQuery(null);
+              setRowOrder(Array.from({ length: DEFAULT_ROW_COUNT }, (_, i) => i + 1));
+              alert(`Successfully created cloud spreadsheet: "${createdDoc.name}"`);
+            }
+          } catch (err: any) {
+            alert(`Error creating cloud spreadsheet: ${err.message || err}`);
+          }
+        }
+      } else {
+        // Local only mode
+        if (window.confirm("To save this new spreadsheet in your cloud database, you need to sign in. Would you like to sign in now? (Click 'Cancel' to create a clean locally saved spreadsheet workspace instead)")) {
+          navigate('/login');
+        } else {
+          setSheets(blankSheets);
+          setActiveSheetId(blankSheets[0].id);
+          setActiveCloudFileId(null);
+          setActiveCloudFileName(null);
+          setSelection({
+            startCell: 'A1',
+            endCell: 'A1',
+            activeCell: 'A1',
+          });
+          setEditingCell(null);
+          setEditValue('');
+          setIsVisualizerOpen(false);
+          setFilterQuery(null);
+          setRowOrder(Array.from({ length: DEFAULT_ROW_COUNT }, (_, i) => i + 1));
+          alert("Generated a clean local blank workspace successfully.");
+        }
+      }
+    }
+  };
+
 
 
   // Column Sorter
@@ -660,10 +791,30 @@ export default function App() {
   const activeCellValue = activeCellData ? activeCellData.rawValue : '';
   const activeCellStyle = activeCellData?.style || {};
 
+  // Show elegant loading/securing state if still pulling session details
+  if (isSupabaseConfigured && isAuthChecking) {
+    return (
+      <div className={`min-h-screen w-screen flex flex-col items-center justify-center transition-colors duration-150 ${
+        isDarkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-gray-50 text-zinc-800'
+      }`}>
+        <div className="flex flex-col items-center text-center">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20 mb-4 animate-pulse">
+            <span className="font-sans font-black text-2xl text-white">V</span>
+          </div>
+          <p className="text-xs font-semibold tracking-wide">Securing cloud environment & session...</p>
+          <span className="text-[9px] font-mono mt-1 text-zinc-400">VortexSheets Cloud Sync v4.0</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Routes>
       <Route path="/" element={
-        <div className={`h-screen w-screen overflow-hidden flex flex-col transition-colors duration-150 ${
+        (isSupabaseConfigured && !supabaseUser) ? (
+          <Navigate to="/login" replace />
+        ) : (
+          <div className={`h-screen w-screen overflow-hidden flex flex-col transition-colors duration-150 ${
           isDarkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-white text-zinc-800'
         }`}>
           {/* Header & Controls toolbar */}
@@ -696,6 +847,7 @@ export default function App() {
               }}
               activeCloudFileName={activeCloudFileName}
               supabaseUserEmail={supabaseUser?.email || null}
+              onCreateNewSpreadsheet={handleCreateNewSpreadsheet}
             />
           </div>
 
@@ -834,6 +986,7 @@ export default function App() {
             }}
           />
         </div>
+        )
       } />
       <Route path="/login" element={<LoginPage initialMode="login" isDarkMode={isDarkMode} />} />
       <Route path="/signup" element={<LoginPage initialMode="signup" isDarkMode={isDarkMode} />} />

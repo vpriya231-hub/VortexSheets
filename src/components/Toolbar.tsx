@@ -24,7 +24,8 @@ import {
   Trash2,
   Bookmark,
   FileSpreadsheet,
-  Cloud
+  Cloud,
+  Plus
 } from 'lucide-react';
 import { CellStyle } from '../types';
 
@@ -51,6 +52,7 @@ interface ToolbarProps {
   onOpenSupabaseModal: () => void;
   activeCloudFileName: string | null;
   supabaseUserEmail: string | null;
+  onCreateNewSpreadsheet: () => void;
 }
 
 // Sleek aesthetic colors for font text color
@@ -96,7 +98,8 @@ export default function Toolbar({
   isVisualizerOpen,
   onOpenSupabaseModal,
   activeCloudFileName,
-  supabaseUserEmail
+  supabaseUserEmail,
+  onCreateNewSpreadsheet
 }: ToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -226,6 +229,16 @@ export default function Toolbar({
                 ({supabaseUserEmail.split('@')[0]})
               </span>
             )}
+          </button>
+
+          <button
+            id="toolbar-new-spreadsheet-btn"
+            onClick={onCreateNewSpreadsheet}
+            title="Create a new, completely blank cloud or local spreadsheet workspace"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-all shrink-0 bg-orange-500 hover:bg-orange-600 hover:scale-[1.01] active:translate-y-px text-white shadow-sm border-transparent`}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span className="whitespace-nowrap">+ New Spreadsheet</span>
           </button>
 
           <div className="h-6 w-px bg-gray-300 dark:bg-zinc-700 mx-1 shrink-0"></div>
