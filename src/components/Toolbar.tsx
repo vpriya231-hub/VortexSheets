@@ -25,7 +25,8 @@ import {
   Bookmark,
   FileSpreadsheet,
   Cloud,
-  Plus
+  Plus,
+  X
 } from 'lucide-react';
 import { CellStyle } from '../types';
 
@@ -493,20 +494,64 @@ export default function Toolbar({
           <button
             id="toolbar-formula-helper-trigger"
             onClick={() => {
-              setShowFormulaHelper(!showFormulaHelper);
+              setShowFormulaHelper(true);
               setShowSortFilter(false);
             }}
-            className={`flex items-center gap-1.5 px-2 py-1.5 rounded text-xs font-semibold text-orange-655 bg-orange-50 hover:bg-orange-100 dark:bg-orange-955/20 dark:text-orange-400 hover:dark:bg-orange-955/35 cursor-pointer transition-colors`}
+            className={`flex items-center gap-1.5 px-2 py-1.5 rounded text-xs font-semibold text-orange-655 bg-orange-55/60 hover:bg-orange-100 dark:bg-orange-955/20 dark:text-orange-400 hover:dark:bg-orange-955/35 cursor-pointer transition-colors`}
           >
             <Sparkles className="w-3.5 h-3.5 text-orange-500" />
             <span className="whitespace-nowrap font-sans">Formula Insert</span>
           </button>
+        </div>
 
-          {showFormulaHelper && (
-            <div className={`absolute left-0 top-8 z-50 p-2.5 rounded-xl shadow-xl border w-56 flex flex-col gap-1.5 ${
-              isDarkMode ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-gray-200'
-            }`}>
-              <span className="text-[10px] font-bold uppercase opacity-50 tracking-wider">Functions</span>
+        <div className="h-4 w-px bg-gray-300 dark:bg-zinc-700 shrink-0"></div>
+
+        {/* Sort & Filter Options bar */}
+        <div className="relative shrink-0">
+          <button
+            id="toolbar-sort-filter-trigger"
+            onClick={() => {
+              setShowSortFilter(true);
+              setShowFormulaHelper(false);
+            }}
+            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800/80 cursor-pointer`}
+          >
+            <ArrowUpDown className="w-3.5 h-3.5 text-gray-500 animate-pulse" />
+            <span className="whitespace-nowrap font-sans">Sort & Filter</span>
+          </button>
+        </div>
+
+      </div>
+
+      {/* --- FORMULA INSERT MODAL DIALOG (Immune to WebView overflow clipping) --- */}
+      {showFormulaHelper && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+            onClick={() => setShowFormulaHelper(false)}
+          />
+          
+          <div className={`relative w-full max-w-sm rounded-2xl border p-5 shadow-2xl transition-all scale-100 animate-in fade-in duration-150 ${
+            isDarkMode ? 'bg-zinc-900 border-zinc-800/80 text-zinc-100' : 'bg-white border-gray-200 text-zinc-800'
+          }`}>
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100 dark:border-zinc-800/50">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-orange-500" />
+                </div>
+                <span className="text-sm font-bold tracking-tight">Insert Formula</span>
+              </div>
+              <button
+                onClick={() => setShowFormulaHelper(false)}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                  isDarkMode ? 'hover:bg-zinc-805 text-zinc-400' : 'hover:bg-gray-100 text-gray-500'
+                }`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto pr-1">
               {[
                 { name: 'SUM', formula: '=SUM(A1:A5)', desc: 'Calculates the sum' },
                 { name: 'AVERAGE', formula: '=AVERAGE(A1:A5)', desc: 'Calculates the mean' },
@@ -520,134 +565,154 @@ export default function Toolbar({
                     onInsertFormula(item.formula);
                     setShowFormulaHelper(false);
                   }}
-                  className={`text-left p-1.5 rounded text-xs cursor-pointer hover:bg-orange-500/10 hover:text-orange-500 transition-colors ${
-                    isDarkMode ? 'hover:bg-zinc-700' : 'hover:bg-gray-150'
+                  className={`text-left p-3 rounded-xl border transition-colors flex flex-col gap-1 w-full cursor-pointer ${
+                    isDarkMode 
+                      ? 'bg-zinc-850 hover:bg-zinc-800 border-zinc-800 hover:border-orange-500/30 text-white' 
+                      : 'bg-gray-50 hover:bg-orange-50/40 border-gray-100 hover:border-orange-500/20 text-gray-800'
                   }`}
                 >
                   <div className="font-mono font-bold text-xs text-orange-600 dark:text-orange-400">{item.name}</div>
-                  <div className="text-[10px] opacity-75">{item.desc} e.g. <span className="font-mono text-orange-500/80">{item.formula}</span></div>
+                  <div className="text-[11px] opacity-75">{item.desc}</div>
+                  <div className="text-[9px] font-mono mt-0.5 opacity-60">Example: <span className="text-orange-500 font-semibold">{item.formula}</span></div>
                 </button>
               ))}
             </div>
-          )}
+
+            <div className="mt-4 pt-3 border-t border-gray-100 dark:border-zinc-800/50 text-[10px] text-zinc-400 dark:text-zinc-500 text-center font-mono">
+              Tap a formula to apply it to your current active cell selection
+            </div>
+          </div>
         </div>
+      )}
 
-        <div className="h-4 w-px bg-gray-300 dark:bg-zinc-700 shrink-0"></div>
+      {/* --- SORT & FILTER MODAL DIALOG (Immune to WebView overflow clipping) --- */}
+      {showSortFilter && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+            onClick={() => setShowSortFilter(false)}
+          />
 
-        {/* Sort & Filter Options bar */}
-        <div className="relative shrink-0">
-          <button
-            id="toolbar-sort-filter-trigger"
-            onClick={() => {
-              setShowSortFilter(!showSortFilter);
-              setShowFormulaHelper(false);
-            }}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800/80 cursor-pointer`}
-          >
-            <ArrowUpDown className="w-3.5 h-3.5 text-gray-500 animate-pulse" />
-            <span className="whitespace-nowrap font-sans">Sort & Filter</span>
-          </button>
+          <div className={`relative w-full max-w-sm rounded-2xl border p-5 shadow-2xl transition-all scale-100 animate-in fade-in duration-150 ${
+            isDarkMode ? 'bg-zinc-900 border-zinc-800/80 text-zinc-100' : 'bg-white border-gray-200 text-zinc-800'
+          }`}>
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100 dark:border-zinc-800/50">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                  <ArrowUpDown className="w-4 h-4 text-orange-500" />
+                </div>
+                <span className="text-sm font-bold tracking-tight">Sort & Filter Grid</span>
+              </div>
+              <button
+                onClick={() => setShowSortFilter(false)}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                  isDarkMode ? 'hover:bg-zinc-805 text-zinc-400' : 'hover:bg-gray-100 text-gray-500'
+                }`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-          {showSortFilter && (
-            <div className={`absolute right-0 sm:left-0 top-8 z-50 p-3 rounded-xl shadow-xl border w-64 flex flex-col gap-3 ${
-              isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-white border-gray-200 text-gray-800'
-            }`}>
-              {/* Sorting Section */}
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-bold uppercase opacity-50 flex items-center gap-1">
-                  <ArrowUpDown className="w-3 h-3 text-orange-500" /> Column Sorting
-                </span>
-                <div className="grid grid-cols-2 gap-1 px-0.5">
-                  <div className="flex items-center gap-1 pt-0.5">
-                    <span className="text-xs opacity-80">Col:</span>
-                    <select
-                      id="toolbar-sort-col-select"
-                      value={selectedSortCol}
-                      onChange={(e) => setSelectedSortCol(e.target.value)}
-                      className={`text-xs p-1 rounded border outline-none w-16 ${
-                        isDarkMode ? 'bg-zinc-700 border-zinc-600' : 'bg-white border-gray-200'
-                      }`}
-                    >
-                      {colLetters.map((col) => (
-                        <option key={col} value={col}>{col}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex gap-1 justify-end">
-                    <button
-                      id="toolbar-sort-asc-btn"
-                      onClick={() => onSort(selectedSortCol, 'asc')}
-                      className="px-2 py-1 text-[10px] bg-orange-100/50 hover:bg-orange-500 border border-orange-250 hover:text-white rounded text-xs cursor-pointer transition-colors font-semibold"
-                      title="Sort Column Ascending"
-                    >
-                      A → Z
-                    </button>
-                    <button
-                      id="toolbar-sort-desc-btn"
-                      onClick={() => onSort(selectedSortCol, 'desc')}
-                      className="px-2 py-1 text-[10px] bg-orange-100/50 hover:bg-orange-500 border border-orange-250 hover:text-white rounded text-xs cursor-pointer transition-colors font-semibold"
-                      title="Sort Column Descending"
-                    >
-                      Z → A
-                    </button>
-                  </div>
+            <div className="flex flex-col gap-4">
+              {/* sorting layout section */}
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-bold uppercase opacity-55 font-mono tracking-wider">Column Sorting</span>
+                
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xs font-medium">Target Column:</span>
+                  <select
+                    id="toolbar-sort-col-select-modal"
+                    value={selectedSortCol}
+                    onChange={(e) => setSelectedSortCol(e.target.value)}
+                    className={`text-xs p-2 rounded-xl border outline-none flex-1 min-w-[70px] ${
+                      isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-white border-gray-200 text-gray-800'
+                    }`}
+                  >
+                    {colLetters.map((col) => (
+                      <option key={col} value={col}>Column {col}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <button
+                    id="toolbar-sort-asc-btn-modal"
+                    onClick={() => {
+                      onSort(selectedSortCol, 'asc');
+                      setShowSortFilter(false);
+                    }}
+                    className="px-3 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl shadow-md shadow-orange-500/10 cursor-pointer active:translate-y-px transition-all text-center"
+                  >
+                    A → Z (Ascending)
+                  </button>
+                  <button
+                    id="toolbar-sort-desc-btn-modal"
+                    onClick={() => {
+                      onSort(selectedSortCol, 'desc');
+                      setShowSortFilter(false);
+                    }}
+                    className="px-3 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl shadow-md shadow-orange-500/10 cursor-pointer active:translate-y-px transition-all text-center"
+                  >
+                    Z → A (Descending)
+                  </button>
                 </div>
               </div>
 
-              <div className="h-px bg-gray-200 dark:bg-zinc-700"></div>
+              <div className="h-px bg-gray-100 dark:bg-zinc-800/80 my-1"></div>
 
-              {/* Filtering Section */}
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-bold uppercase opacity-50 flex items-center gap-1">
-                  <Filter className="w-3 h-3 text-orange-500" /> Row Filtering
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs opacity-80">On:</span>
+              {/* filtering layout section */}
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-bold uppercase opacity-55 font-mono tracking-wider">Row Filtering</span>
+                
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xs font-medium">Filter Column:</span>
                   <select
-                     id="toolbar-filter-col-select"
-                     value={selectedFilterCol}
-                     onChange={(e) => setSelectedFilterCol(e.target.value)}
-                     className={`text-xs p-1 rounded border outline-none w-16 ${
-                       isDarkMode ? 'bg-zinc-700 border-zinc-600' : 'bg-white border-gray-200'
-                     }`}
+                    id="toolbar-filter-col-select-modal"
+                    value={selectedFilterCol}
+                    onChange={(e) => setSelectedFilterCol(e.target.value)}
+                    className={`text-xs p-2 rounded-xl border outline-none flex-1 min-w-[70px] ${
+                      isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-white border-gray-200 text-gray-800'
+                    }`}
                   >
                     {colLetters.map((col) => (
-                      <option key={col} value={col}>{col}</option>
+                      <option key={col} value={col}>Column {col}</option>
                     ))}
                   </select>
+                </div>
 
+                <div className="flex flex-col gap-1.5 mt-0.5">
                   <input
-                    id="toolbar-filter-query-input"
+                    id="toolbar-filter-query-input-modal"
                     type="text"
-                    placeholder="Search query..."
+                    placeholder="Search or filter rows..."
                     value={filterQuery}
                     onChange={(e) => {
                       setFilterQuery(e.target.value);
                       onApplyFilter(selectedFilterCol, e.target.value);
                     }}
-                    className={`text-xs px-2 py-1 rounded border outline-none flex-1 truncate ${
-                      isDarkMode ? 'bg-zinc-700 border-zinc-600 text-white' : 'bg-white border-gray-300'
+                    className={`text-xs px-3 py-2.5 rounded-xl border outline-none w-full ${
+                      isDarkMode ? 'bg-zinc-850 border-zinc-700 text-white' : 'bg-white border-gray-300 text-zinc-800'
                     }`}
                   />
                 </div>
+
                 {filterQuery && (
                   <button
-                    id="toolbar-clear-filter-btn"
+                    id="toolbar-clear-filter-btn-modal"
                     onClick={() => {
                       setFilterQuery('');
                       onApplyFilter(selectedFilterCol, '');
                     }}
-                    className="text-xs text-red-500 text-right hover:underline font-medium cursor-pointer"
+                    className="text-xs text-red-500 text-center hover:underline py-1 font-bold cursor-pointer"
                   >
-                    Clear Filter
+                    Clear Filter Query
                   </button>
                 )}
               </div>
             </div>
-          )}
+          </div>
         </div>
-
-      </div>
+      )}
     </div>
   );
 }
