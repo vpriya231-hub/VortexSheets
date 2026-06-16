@@ -27,6 +27,8 @@ import HelpModal from './components/HelpModal';
 import DataVisualizer from './components/DataVisualizer';
 import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
 import SupabaseAuthModal from './components/SupabaseAuthModal';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import LoginPage from './components/LoginPage';
 
 
 const DEFAULT_ROW_COUNT = 1000;
@@ -64,6 +66,7 @@ const INITIAL_SHEETS = [
 ];
 
 export default function App() {
+  const navigate = useNavigate();
   const [sheets, setSheets] = useState<Array<{ id: string; name: string; data: SpreadsheetData }>>(() => {
     return INITIAL_SHEETS;
   });
@@ -658,170 +661,183 @@ export default function App() {
   const activeCellStyle = activeCellData?.style || {};
 
   return (
-    <div className={`h-screen w-screen overflow-hidden flex flex-col transition-colors duration-150 ${
-      isDarkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-white text-zinc-800'
-    }`}>
-      {/* Header & Controls toolbar */}
-      <div className="shrink-0">
-        <Toolbar
-          activeStyle={activeCellStyle}
-          onStyleChange={handleStyleChange}
-          onImportCSV={handleImportCSV}
-          onExportCSV={handleExportCSV}
-          onExportXLSX={handleExportXLSX}
-          activeCell={activeCellRef}
-          selectedRange={null}
-          onInsertFormula={handleInsertFormula}
-          onClearCell={handleClearCell}
-          onResetGrid={handleResetGrid}
-          isDarkMode={isDarkMode}
-          onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
-          onOpenHelp={() => setIsHelpOpen(true)}
-          onSort={handleSort}
-          onApplyFilter={handleApplyFilter}
-          colCount={data.colCount}
-          onToggleVisualizer={() => setIsVisualizerOpen(!isVisualizerOpen)}
-          isVisualizerOpen={isVisualizerOpen}
-          onOpenSupabaseModal={() => setIsSupabaseOpen(true)}
-          activeCloudFileName={activeCloudFileName}
-          supabaseUserEmail={supabaseUser?.email || null}
-        />
-      </div>
+    <Routes>
+      <Route path="/" element={
+        <div className={`h-screen w-screen overflow-hidden flex flex-col transition-colors duration-150 ${
+          isDarkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-white text-zinc-800'
+        }`}>
+          {/* Header & Controls toolbar */}
+          <div className="shrink-0">
+            <Toolbar
+              activeStyle={activeCellStyle}
+              onStyleChange={handleStyleChange}
+              onImportCSV={handleImportCSV}
+              onExportCSV={handleExportCSV}
+              onExportXLSX={handleExportXLSX}
+              activeCell={activeCellRef}
+              selectedRange={null}
+              onInsertFormula={handleInsertFormula}
+              onClearCell={handleClearCell}
+              onResetGrid={handleResetGrid}
+              isDarkMode={isDarkMode}
+              onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+              onOpenHelp={() => setIsHelpOpen(true)}
+              onSort={handleSort}
+              onApplyFilter={handleApplyFilter}
+              colCount={data.colCount}
+              onToggleVisualizer={() => setIsVisualizerOpen(!isVisualizerOpen)}
+              isVisualizerOpen={isVisualizerOpen}
+              onOpenSupabaseModal={() => {
+                if (supabaseUser) {
+                  setIsSupabaseOpen(true);
+                } else {
+                  navigate('/login');
+                }
+              }}
+              activeCloudFileName={activeCloudFileName}
+              supabaseUserEmail={supabaseUser?.email || null}
+            />
+          </div>
 
-      {/* Formula Recalculator Bar display - positioned right beneath toolbar */}
-      <div className="shrink-0 border-b border-gray-200 dark:border-zinc-800">
-        <FormulaBar
-          activeCellCoord={activeCellRef}
-          value={editingCell === activeCellRef ? editValue : activeCellValue}
-          onChange={(newVal) => {
-            if (activeCellRef) {
-              handleStartEditing(activeCellRef, newVal);
-            }
-          }}
-          isDarkMode={isDarkMode}
-        />
-      </div>
+          {/* Formula Recalculator Bar display - positioned right beneath toolbar */}
+          <div className="shrink-0 border-b border-gray-200 dark:border-zinc-800">
+            <FormulaBar
+              activeCellCoord={activeCellRef}
+              value={editingCell === activeCellRef ? editValue : activeCellValue}
+              onChange={(newVal) => {
+                if (activeCellRef) {
+                  handleStartEditing(activeCellRef, newVal);
+                }
+              }}
+              isDarkMode={isDarkMode}
+            />
+          </div>
 
-      {isVisualizerOpen && (
-        <div className="shrink-0 p-3 border-b border-gray-200 dark:border-zinc-800 bg-gray-50/20 dark:bg-zinc-950/20">
-          <DataVisualizer
-            data={data}
-            startCell={selection.startCell}
-            endCell={selection.endCell}
+          {isVisualizerOpen && (
+            <div className="shrink-0 p-3 border-b border-gray-200 dark:border-zinc-800 bg-gray-50/20 dark:bg-zinc-950/20">
+              <DataVisualizer
+                data={data}
+                startCell={selection.startCell}
+                endCell={selection.endCell}
+                isDarkMode={isDarkMode}
+                onClose={() => setIsVisualizerOpen(false)}
+                chartType={chartType}
+                setChartType={setChartType}
+                paletteName={paletteName}
+                setPaletteName={setPaletteName}
+                chartTitle={chartTitle}
+                setChartTitle={setChartTitle}
+                chartRange={chartRange}
+                setChartRange={setChartRange}
+              />
+            </div>
+          )}
+
+          {/* Interactive Core Spreadsheet Grid area */}
+          <div className="flex-1 min-h-0 flex flex-col">
+            <Grid
+              data={data}
+              selection={selection}
+              editingCell={editingCell}
+              editValue={editValue}
+              isDarkMode={isDarkMode}
+              rowOrder={rowOrder}
+              filterQuery={filterQuery}
+              onSelectCell={handleSelectCell}
+              onStartEditing={handleStartEditing}
+              onUpdateEditValue={handleUpdateEditValue}
+              onCommitEditing={handleCommitEditing}
+              onCancelEditing={handleCancelEditing}
+              onResizeColumn={handleResizeColumn}
+              onResizeRow={handleResizeRow}
+              onSort={handleSort}
+              onApplyFilter={handleApplyFilter}
+            />
+          </div>
+
+          {/* Interactive sheet tabs bar styled in signature vibrant Orange & Amber */}
+          <div className="shrink-0">
+            <SheetTabs
+              sheets={sheets.map(s => ({ id: s.id, name: s.name }))}
+              activeSheetId={activeSheetId}
+              onSelectSheet={handleSwitchSheet}
+              onCreateSheet={handleCreateSheet}
+              onRenameSheet={handleRenameSheet}
+              onDeleteSheet={handleDeleteSheet}
+              isDarkMode={isDarkMode}
+            />
+          </div>
+
+          {/* Grid Quick Summary bar */}
+          <div className="shrink-0 px-4 py-2 border-t text-[10px] font-mono flex flex-wrap justify-between items-center bg-gray-50/50 dark:bg-zinc-950/20 text-slate-400 border-gray-200/55 dark:border-zinc-800/55">
+            <div className="flex gap-4">
+              <span>ACTIVE CELL: <strong className="text-orange-500">{activeCellRef || 'None'}</strong></span>
+              {activeCellData && (
+                <>
+                  <span className="hidden sm:inline">| RAW: <span className="opacity-80">{activeCellData.rawValue}</span></span>
+                  <span>| COMPUTED: <strong className="text-gray-700 dark:text-zinc-200">{activeCellData.computedValue}</strong></span>
+                </>
+              )}
+            </div>
+            <div className="flex gap-2.5 items-center flex-shrink-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>GRID ALIGNED</span>
+            </div>
+          </div>
+
+          {/* Help Overlay reference guide */}
+          <HelpModal
+            isOpen={isHelpOpen}
+            onClose={() => setIsHelpOpen(false)}
             isDarkMode={isDarkMode}
-            onClose={() => setIsVisualizerOpen(false)}
-            chartType={chartType}
-            setChartType={setChartType}
-            paletteName={paletteName}
-            setPaletteName={setPaletteName}
-            chartTitle={chartTitle}
-            setChartTitle={setChartTitle}
-            chartRange={chartRange}
-            setChartRange={setChartRange}
+          />
+
+          {/* Supabase auth control and sheet file sync modal */}
+          <SupabaseAuthModal
+            isOpen={isSupabaseOpen}
+            onClose={() => setIsSupabaseOpen(false)}
+            isDarkMode={isDarkMode}
+            currentSheetsData={{
+              sheets,
+              chartConfig: {
+                isVisualizerOpen,
+                rangeInput: chartRange,
+                chartType,
+                paletteName,
+                chartTitle
+              }
+            }}
+            onLoadSheetsFromCloud={handleLoadSheetsFromCloud}
+            onSaveTrigger={async () => {
+              if (isSupabaseConfigured && supabaseUser && activeCloudFileId) {
+                try {
+                  await supabase
+                    .from('vortex_sheets')
+                    .update({
+                      sheets_data: {
+                        sheets,
+                        chartConfig: {
+                          isVisualizerOpen,
+                          rangeInput: chartRange,
+                          chartType,
+                          paletteName,
+                          chartTitle
+                        }
+                      },
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('id', activeCloudFileId);
+                } catch (err) {
+                  console.error(err);
+                }
+              }
+            }}
           />
         </div>
-      )}
-
-      {/* Interactive Core Spreadsheet Grid area */}
-      <div className="flex-1 min-h-0 flex flex-col">
-        <Grid
-          data={data}
-          selection={selection}
-          editingCell={editingCell}
-          editValue={editValue}
-          isDarkMode={isDarkMode}
-          rowOrder={rowOrder}
-          filterQuery={filterQuery}
-          onSelectCell={handleSelectCell}
-          onStartEditing={handleStartEditing}
-          onUpdateEditValue={handleUpdateEditValue}
-          onCommitEditing={handleCommitEditing}
-          onCancelEditing={handleCancelEditing}
-          onResizeColumn={handleResizeColumn}
-          onResizeRow={handleResizeRow}
-          onSort={handleSort}
-          onApplyFilter={handleApplyFilter}
-        />
-      </div>
-
-      {/* Interactive sheet tabs bar styled in signature vibrant Orange & Amber */}
-      <div className="shrink-0">
-        <SheetTabs
-          sheets={sheets.map(s => ({ id: s.id, name: s.name }))}
-          activeSheetId={activeSheetId}
-          onSelectSheet={handleSwitchSheet}
-          onCreateSheet={handleCreateSheet}
-          onRenameSheet={handleRenameSheet}
-          onDeleteSheet={handleDeleteSheet}
-          isDarkMode={isDarkMode}
-        />
-      </div>
-
-      {/* Grid Quick Summary bar */}
-      <div className="shrink-0 px-4 py-2 border-t text-[10px] font-mono flex flex-wrap justify-between items-center bg-gray-50/50 dark:bg-zinc-950/20 text-slate-400 border-gray-200/55 dark:border-zinc-800/55">
-        <div className="flex gap-4">
-          <span>ACTIVE CELL: <strong className="text-orange-500">{activeCellRef || 'None'}</strong></span>
-          {activeCellData && (
-            <>
-              <span className="hidden sm:inline">| RAW: <span className="opacity-80">{activeCellData.rawValue}</span></span>
-              <span>| COMPUTED: <strong className="text-gray-700 dark:text-zinc-200">{activeCellData.computedValue}</strong></span>
-            </>
-          )}
-        </div>
-        <div className="flex gap-2.5 items-center flex-shrink-0">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>GRID ALIGNED</span>
-        </div>
-      </div>
-
-      {/* Help Overlay reference guide */}
-      <HelpModal
-        isOpen={isHelpOpen}
-        onClose={() => setIsHelpOpen(false)}
-        isDarkMode={isDarkMode}
-      />
-
-      {/* Supabase auth control and sheet file sync modal */}
-      <SupabaseAuthModal
-        isOpen={isSupabaseOpen}
-        onClose={() => setIsSupabaseOpen(false)}
-        isDarkMode={isDarkMode}
-        currentSheetsData={{
-          sheets,
-          chartConfig: {
-            isVisualizerOpen,
-            rangeInput: chartRange,
-            chartType,
-            paletteName,
-            chartTitle
-          }
-        }}
-        onLoadSheetsFromCloud={handleLoadSheetsFromCloud}
-        onSaveTrigger={async () => {
-          if (isSupabaseConfigured && supabaseUser && activeCloudFileId) {
-            try {
-              await supabase
-                .from('vortex_sheets')
-                .update({
-                  sheets_data: {
-                    sheets,
-                    chartConfig: {
-                      isVisualizerOpen,
-                      rangeInput: chartRange,
-                      chartType,
-                      paletteName,
-                      chartTitle
-                    }
-                  },
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', activeCloudFileId);
-            } catch (err) {
-              console.error(err);
-            }
-          }
-        }}
-      />
-    </div>
+      } />
+      <Route path="/login" element={<LoginPage initialMode="login" isDarkMode={isDarkMode} />} />
+      <Route path="/signup" element={<LoginPage initialMode="signup" isDarkMode={isDarkMode} />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
