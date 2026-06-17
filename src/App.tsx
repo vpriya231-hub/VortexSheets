@@ -30,7 +30,7 @@ import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
 import SupabaseAuthModal from './components/SupabaseAuthModal';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import LoginPage from './components/LoginPage';
-import { Menu, X, Sparkles } from 'lucide-react';
+import { Menu, X, Sparkles, Download, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 
 const DEFAULT_ROW_COUNT = 1000;
@@ -128,6 +128,12 @@ export default function App() {
   const [activeCloudFileName, setActiveCloudFileName] = useState<string | null>(null);
   const [supabaseUser, setSupabaseUser] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState<boolean>(isSupabaseConfigured);
+
+  // Export status tracking states for WebView workaround modal
+  const [exportStatus, setExportStatus] = useState<'idle' | 'uploading' | 'ready' | 'error'>('idle');
+  const [exportDownloadUrl, setExportDownloadUrl] = useState<string | null>(null);
+  const [exportErrorMsg, setExportErrorMsg] = useState<string | null>(null);
+  const [exportFileName, setExportFileName] = useState<string>('export.xlsx');
 
   // Sorting and Filtering states
   const [rowOrder, setRowOrder] = useState<number[]>(() => {
@@ -504,6 +510,11 @@ export default function App() {
       return false; // Tells the caller to execute local fallbacks
     }
 
+    setExportStatus('uploading');
+    setExportFileName(filename);
+    setExportDownloadUrl(null);
+    setExportErrorMsg(null);
+
     try {
       const bucketName = 'spreadsheets';
       
@@ -528,7 +539,9 @@ export default function App() {
 
       if (uploadError) {
         console.warn('Supabase storage upload failed:', uploadError.message);
-        return false;
+        setExportStatus('error');
+        setExportErrorMsg(`Database storage upload failed: ${uploadError.message}`);
+        return true;
       }
 
       // 3. Retrieve public URL
@@ -542,35 +555,19 @@ export default function App() {
         // Append download parameters to force direct attachment headers
         const downloadUrl = `${data.publicUrl}?download=${encodeURIComponent(filename)}&t=${Date.now()}`;
 
-        // Try to force trigger opening in the device's default system external browser
-        try {
-          window.open(downloadUrl, '_blank');
-        } catch (err) {
-          console.warn('window.open was blocked, falling back to anchor link:', err);
-        }
-
-        // Trigger dynamic link click with target="_blank" and rel noreferrer
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = filename;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        // Fallback context assignment
-        setTimeout(() => {
-          window.location.href = downloadUrl;
-        }, 120);
-
+        setExportDownloadUrl(downloadUrl);
+        setExportStatus('ready');
         return true;
       }
       
-      return false;
-    } catch (err) {
+      setExportStatus('error');
+      setExportErrorMsg('Cloud file retrieval yielded an empty URL.');
+      return true;
+    } catch (err: any) {
       console.error('Failed to run WebView download upload-pipeline:', err);
-      return false;
+      setExportStatus('error');
+      setExportErrorMsg(err?.message || 'Failed during cloud upload/generation process.');
+      return true;
     }
   };
 
@@ -1299,6 +1296,115 @@ export default function App() {
               }
             }}
           />
+
+          {/* Workaround export status modal for WebView download interception issues */}
+          {exportStatus !== 'idle' && (
+            <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in font-sans">
+              <div 
+                className={`w-full max-w-md rounded-3xl p-6 shadow-2xl border flex flex-col text-center transition-all text-slate-800 ${
+                  isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-150'
+                }`}
+              >
+                {/* 1. UPLOADING STATE */}
+                {exportStatus === 'uploading' && (
+                  <div className="space-y-5 py-3">
+                    <div className="flex justify-center">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-orange-500/20 rounded-full blur-xl animate-pulse" />
+                        <Loader2 className="w-14 h-14 text-orange-500 animate-spin relative stroke-[2.5]" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-extrabold tracking-tight">Preparing Excel Document</h3>
+                      <p className={`text-xs px-2 leading-relaxed ${isDarkMode ? 'text-zinc-400' : 'text-slate-500'}`}>
+                        Compiling sheets data, formatting structures, and syncing to public database buckets to bypass native Android/iOS WebView restrictions.
+                      </p>
+                    </div>
+                    <div className="h-1.5 w-full bg-gray-150 dark:bg-zinc-800 rounded-full overflow-hidden relative">
+                      <div className="h-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full animate-pulse" style={{ width: '100%' }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. READY / SUCCESS STATE */}
+                {exportStatus === 'ready' && (
+                  <div className="space-y-6 py-2">
+                    <div className="flex justify-center">
+                      <div className="p-3 bg-emerald-500/10 rounded-full animate-bounce">
+                        <CheckCircle2 className="w-12 h-12 text-emerald-500 stroke-[2.5]" />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-extrabold tracking-tight">Export Compiled Successfully!</h3>
+                      <p className={`text-xs px-2 leading-relaxed ${isDarkMode ? 'text-zinc-400' : 'text-slate-500'}`}>
+                        Your spreadsheet workbook <strong className="text-orange-500">{exportFileName}</strong> has been secured in public storage. Tap the link below to download.
+                      </p>
+                    </div>
+
+                    {/* DIRECT EXPLICIT USER CLICK ANCHOR */}
+                    <a
+                      href={exportDownloadUrl || undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setExportStatus('idle')}
+                      className="w-full inline-flex items-center justify-center gap-2.5 px-6 py-4 rounded-xl text-white font-extrabold text-xs uppercase tracking-wider bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-md shadow-orange-500/20 hover:shadow-orange-500/40 active:scale-95 transition-all text-center cursor-pointer select-none"
+                    >
+                      <Download className="w-4 h-4 stroke-[2.5]" />
+                      Click here to Download File
+                    </a>
+
+                    <div className={`p-4 rounded-xl text-[11px] leading-relaxed text-left border ${
+                      isDarkMode ? 'bg-zinc-950/40 border-zinc-800 text-zinc-400' : 'bg-orange-50/20 border-orange-100/50 text-slate-500'
+                    }`}>
+                      <span className="font-extrabold text-orange-600 dark:text-orange-400 block mb-0.5">ℹ️ Bypassing WebView Popup Blockers:</span>
+                      Clicking this primary action button utilizes a direct native click gesture, forcing the Android OS to open Google Chrome or your default internet browser to save the spreadsheet file perfectly onto your mobile storage.
+                    </div>
+
+                    <button
+                      onClick={() => setExportStatus('idle')}
+                      className={`w-full py-2.5 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                        isDarkMode
+                          ? 'border-zinc-800 hover:bg-zinc-800 text-zinc-300'
+                          : 'border-zinc-200 hover:bg-gray-50 text-slate-600'
+                      }`}
+                    >
+                      Cancel / Close
+                    </button>
+                  </div>
+                )}
+
+                {/* 3. ERROR STATE */}
+                {exportStatus === 'error' && (
+                  <div className="space-y-5 py-3">
+                    <div className="flex justify-center">
+                      <div className="p-3 bg-rose-500/10 rounded-full">
+                        <AlertCircle className="w-12 h-12 text-rose-500 stroke-[2.5]" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-extrabold tracking-tight">Export Failed</h3>
+                      <p className={`text-xs px-2 leading-relaxed text-rose-500 font-semibold`}>
+                        {exportErrorMsg || 'Unable to sync spreadsheet with cloud downloader storage.'}
+                      </p>
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={() => setExportStatus('idle')}
+                        className={`flex-1 py-3 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                          isDarkMode
+                            ? 'border-zinc-800 hover:bg-zinc-800 text-zinc-300'
+                            : 'border-zinc-200 hover:bg-gray-50 text-slate-600'
+                        }`}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
         )
       } />
