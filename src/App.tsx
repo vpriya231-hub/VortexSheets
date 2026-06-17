@@ -147,8 +147,19 @@ export default function App() {
     const targetChartConfig = !Array.isArray(parsedPayload) ? parsedPayload.chartConfig : null;
 
     if (targetSheets && targetSheets.length > 0) {
-      setSheets([...targetSheets]); // Clone target array to force deep references re-render
-      setActiveSheetId(targetSheets[0].id);
+      const nextSheets = targetSheets.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        data: {
+          cells: s.data?.cells || {},
+          colWidths: s.data?.colWidths || {},
+          rowHeights: s.data?.rowHeights || {},
+          rowCount: s.data?.rowCount || DEFAULT_ROW_COUNT,
+          colCount: s.data?.colCount || DEFAULT_COL_COUNT,
+        }
+      }));
+      setSheets(nextSheets);
+      setActiveSheetId(nextSheets[0].id);
       setActiveCloudFileId(docId);
       setActiveCloudFileName(docName);
       
@@ -161,7 +172,7 @@ export default function App() {
       setEditingCell(null);
       setEditValue('');
       setFilterQuery(null);
-      setRowOrder(Array.from({ length: targetSheets[0].data?.rowCount || DEFAULT_ROW_COUNT }, (_, i) => i + 1));
+      setRowOrder(Array.from({ length: nextSheets[0].data.rowCount || DEFAULT_ROW_COUNT }, (_, i) => i + 1));
 
       // Restore chart configurations if active
       if (targetChartConfig) {
@@ -480,6 +491,59 @@ export default function App() {
     reader.readAsText(file);
   };
 
+  // Auxiliary helper to upload exports directly into a public Supabase Storage bucket and link them
+  // to support AppMySite native Android/iOS WebView download interceptors, falling back to local file downloads on web browsers.
+  const uploadAndDownloadForWebView = async (blob: Blob, filename: string): Promise<boolean> => {
+    if (!isSupabaseConfigured || !supabaseUser) {
+      console.log('Supabase or user not logged in. Falling back to local data download.');
+      return false; // Tells the caller to execute local fallbacks
+    }
+
+    try {
+      const bucketName = 'spreadsheets';
+      
+      // 1. Attempt to create the public bucket 'spreadsheets' if not existing
+      try {
+        await supabase.storage.createBucket(bucketName, { public: true });
+      } catch (err) {
+        // Safe to ignore if bucket is already created or if user permissions prevent it
+      }
+
+      // 2. Upload file to unique path
+      const fileExt = filename.split('.').pop() || 'xlsx';
+      const storagePath = `exports/${supabaseUser.id}/${Date.now()}_${filename.replace(/\s+/g, '_')}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(storagePath, blob, {
+          contentType: fileExt === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.warn('Supabase storage upload failed:', uploadError.message);
+        return false;
+      }
+
+      // 3. Retrieve public URL
+      const { data } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(storagePath);
+
+      if (data && data.publicUrl) {
+        console.log('Supabase storage public URL generated successfully:', data.publicUrl);
+        // Open the URL in a separate tab or direct location redirect to enable Android DownloadManager
+        window.location.href = data.publicUrl;
+        return true;
+      }
+      
+      return false;
+    } catch (err) {
+      console.error('Failed to run WebView download upload-pipeline:', err);
+      return false;
+    }
+  };
+
   // CSV Exporter
   const handleExportCSV = () => {
     let csvContent = '';
@@ -525,13 +589,21 @@ export default function App() {
     }
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'VortexSheets_Export.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const filename = 'VortexSheets_Export.csv';
+
+    // Attempt WebView custom download pipeline first
+    uploadAndDownloadForWebView(blob, filename).then((success) => {
+      if (success) return;
+
+      // Standard fallback
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
   };
 
   // XLSX Exporter using SheetJS - exports all spreadsheet tabs beautifully with Android WebView support!
@@ -587,38 +659,42 @@ export default function App() {
 
     try {
       const filename = 'VortexSheets_All_Tabs_Export.xlsx';
+      const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-      // 1. Generate Base64 Data URI - Highly compatible with Android WebView download interceptors
-      const b64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
-      const dataUri = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${b64}`;
+      // Attempt WebView direct public URL upload download first
+      uploadAndDownloadForWebView(blob, filename).then((success) => {
+        if (success) return;
 
-      const link = document.createElement('a');
-      link.href = dataUri;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+        // If not in WebView or not logged in, trigger our high-fidelity HTML5 fallback download
+        const b64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+        const dataUri = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${b64}`;
 
-      // 2. Also execute standard blob creation and fallback to ensure compliance on traditional browsers
-      setTimeout(() => {
-        try {
-          const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-          const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-          const objectUrl = URL.createObjectURL(blob);
-          
-          const backupLink = document.createElement('a');
-          backupLink.href = objectUrl;
-          backupLink.download = filename;
-          document.body.appendChild(backupLink);
-          backupLink.click();
-          document.body.removeChild(backupLink);
+        const link = document.createElement('a');
+        link.href = dataUri;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
 
-          // Clear resource
-          setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-        } catch (backupErr) {
-          console.warn('Standard blob backup trigger was bypassed:', backupErr);
-        }
-      }, 100);
+        // Also execute standard blob creation and fallback to ensure compliance on traditional browsers
+        setTimeout(() => {
+          try {
+            const objectUrl = URL.createObjectURL(blob);
+            const backupLink = document.createElement('a');
+            backupLink.href = objectUrl;
+            backupLink.download = filename;
+            document.body.appendChild(backupLink);
+            backupLink.click();
+            document.body.removeChild(backupLink);
+
+            // Clear resource
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+          } catch (backupErr) {
+            console.warn('Standard blob backup trigger was bypassed:', backupErr);
+          }
+        }, 100);
+      });
 
     } catch (e: any) {
       console.error('Export handling error:', e);

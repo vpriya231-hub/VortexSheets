@@ -283,10 +283,14 @@ export default function SupabaseAuthModal({
       const { error } = await supabase
         .from('vortex_sheets')
         .delete()
-        .eq('id', docId);
+        .eq('id', docId)
+        .eq('user_id', session.user.id);
 
       if (error) throw error;
       setAuthSuccess(`"${name}" deleted from cloud storage.`);
+      
+      // Filter out deleted item from local state array immediately as requested
+      setCloudSheetsList((prev) => prev.filter((item) => item.id !== docId));
       
       // Clear current file tracking if deleted
       if (activeCloudFileId === docId && onClearActiveCloudFile) {
