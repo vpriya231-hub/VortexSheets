@@ -77,7 +77,7 @@ export default function SheetTabs({
               <div
                 key={sheet.id}
                 onClick={() => !isEditing && onSelectSheet(sheet.id)}
-                className={`group relative flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all border shrink-0 ${
+                className={`group relative flex items-center gap-2 px-5 py-2.5 sm:py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all border shrink-0 min-h-[44px] md:min-h-0 ${
                   isActive
                     ? isDarkMode
                       ? 'bg-zinc-950 border-orange-500 text-orange-400 shadow-inner'
@@ -86,10 +86,10 @@ export default function SheetTabs({
                       ? 'bg-zinc-800/50 border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
                       : 'bg-gray-50/70 border-gray-250 text-gray-500 hover:bg-gray-100 hover:text-gray-800'
                 }`}
-                style={isActive ? { borderBottomWidth: '2px', borderBottomColor: '#f97316' } : {}}
+                style={isActive ? { borderBottomWidth: '2.5px', borderBottomColor: '#f97316' } : {}}
               >
                 {isEditing ? (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 min-h-[32px]">
                     <input
                       type="text"
                       value={editName}
@@ -97,7 +97,7 @@ export default function SheetTabs({
                       onBlur={() => saveRename(sheet.id)}
                       onKeyDown={(e) => handleKeyDown(e, sheet.id)}
                       autoFocus
-                      className={`px-1.5 py-0.5 rounded border text-[11px] font-medium outline-none text-xs w-20 ${
+                      className={`px-2 py-1 rounded border text-[11px] font-bold outline-none text-xs w-24 ${
                         isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-white border-zinc-200 text-gray-800'
                       }`}
                       onClick={(e) => e.stopPropagation()}
@@ -107,32 +107,34 @@ export default function SheetTabs({
                         e.stopPropagation();
                         saveRename(sheet.id);
                       }}
-                      className="p-0.5 text-emerald-500 hover:text-emerald-600"
+                      className="p-1 text-emerald-500 hover:text-emerald-600 min-w-[32px] min-h-[32px] flex items-center justify-center"
                     >
-                      <Check className="w-3 h-3 stroke-[3]" />
+                      <Check className="w-4 h-4 stroke-[3]" />
                     </button>
                   </div>
                 ) : (
                   <span
                     onDoubleClick={(e) => startRename(sheet.id, sheet.name, e)}
-                    className="truncate max-w-[100px] select-none"
+                    className="truncate max-w-[120px] select-none text-xs"
                     title="Double click to rename sheet"
                   >
                     {sheet.name}
                   </span>
                 )}
 
-                {/* Rename/Delete actions on hover/focus */}
+                {/* Rename/Delete actions – exposed on mobile if tab is active or hovered on desktop */}
                 {!isEditing && (
-                  <div className="flex items-center gap-0.5 opacity-0 lg:group-hover:opacity-100 transition-opacity ml-1 -mr-1">
+                  <div className={`flex items-center gap-1 transition-opacity ml-1.5 -mr-1.5 ${
+                    isActive ? 'opacity-100' : 'opacity-0 lg:group-hover:opacity-100'
+                  }`}>
                     <button
                       onClick={(e) => startRename(sheet.id, sheet.name, e)}
                       title="Rename Sheet"
-                      className={`p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/5 ${
+                      className={`p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center min-w-[32px] min-h-[32px] ${
                         isActive ? 'text-orange-500' : 'text-zinc-400'
                       }`}
                     >
-                      <Edit2 className="w-2.5 h-2.5" />
+                      <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     {sheets.length > 1 && (
                       <button
@@ -143,9 +145,9 @@ export default function SheetTabs({
                           }
                         }}
                         title="Delete Sheet"
-                        className="p-0.5 rounded text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-500"
+                        className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-500 flex items-center justify-center min-w-[32px] min-h-[32px]"
                       >
-                        <X className="w-2.5 h-2.5" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
@@ -160,9 +162,9 @@ export default function SheetTabs({
           id="create-sheet-btn"
           onClick={onCreateSheet}
           title="Add a new sheet tab"
-          className="p-1 px-3 py-1.5 rounded-lg border cursor-pointer shrink-0 transition-all text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-sm border-transparent outline-none flex items-center justify-center font-bold"
+          className="p-3 md:p-1.5 md:px-3 rounded-xl border cursor-pointer shrink-0 transition-all text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-sm border-transparent outline-none flex items-center justify-center font-bold min-h-[44px] min-w-[44px]"
         >
-          <Plus className="w-3.5 h-3.5 stroke-[3]" />
+          <Plus className="w-4 h-4 stroke-[3]" />
         </button>
       </div>
 

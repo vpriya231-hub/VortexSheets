@@ -78,6 +78,16 @@ export default function Grid({
   const [openMenuCol, setOpenMenuCol] = useState<string | null>(null);
   const [menuSearchQuery, setMenuSearchQuery] = useState('');
   const [uncheckedValues, setUncheckedValues] = useState<Record<string, Set<string>>>({});
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Reset rendered row count when sorting, filters or columns are changed
   useEffect(() => {
@@ -385,7 +395,7 @@ export default function Grid({
                   </div>
 
                   {/* Dropdown Menu Overlay inside relative column header */}
-                  {openMenuCol === col && (
+                  {openMenuCol === col && !isMobile && (
                     <div
                       className="sort-filter-dropdown absolute z-50 top-full left-0 mt-1 w-64 rounded-xl shadow-2xl border text-left flex flex-col overflow-hidden animate-fade-in font-sans"
                       style={{
@@ -717,6 +727,219 @@ export default function Grid({
           })}
         </tbody>
       </table>
+
+      {/* Mobile Sorting & Filtering Bottom Sheet overlay */}
+      {openMenuCol && isMobile && (
+        <div className="fixed inset-0 z-[200] overflow-hidden flex flex-col justify-end">
+          {/* Semi-transparent backdrop shadow */}
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-fade-in"
+            onClick={() => setOpenMenuCol(null)}
+          />
+          
+          {/* Elegant Slide-up Drawer Container */}
+          <div 
+            className={`relative z-10 w-full rounded-t-[2rem] shadow-2xl p-5 pb-8 flex flex-col font-sans transition-transform duration-300 max-h-[80vh] border-t select-none animate-slide-up ${
+              isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-800'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Horizontal pull-up indicator line */}
+            <div className={`w-12 h-1.5 rounded-full mx-auto mb-4 shrink-0 ${
+              isDarkMode ? 'bg-zinc-700' : 'bg-gray-300'
+            }`} />
+
+            {/* Header section */}
+            <div className="flex items-center justify-between mb-4 shrink-0">
+              <div className="flex flex-col">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-orange-500 font-mono">Mobile Sheet Utilities</span>
+                <h3 className="text-sm font-extrabold flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-orange-500" />
+                  Sort & Filter: Column {openMenuCol}
+                </h3>
+              </div>
+              <button
+                onClick={() => setOpenMenuCol(null)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors outline-none cursor-pointer ${
+                  isDarkMode 
+                    ? 'border-zinc-800 bg-zinc-800/50 hover:bg-zinc-800 text-zinc-300' 
+                    : 'border-zinc-200 bg-gray-50 hover:bg-gray-100 text-gray-700'
+                }`}
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Sort Ascending/Descending - Huge Touch Targets (minimum 44px) */}
+            <div className="grid grid-cols-2 gap-3 mb-4 shrink-0">
+              <button
+                onClick={() => {
+                  onSort(openMenuCol, 'asc');
+                  setOpenMenuCol(null);
+                }}
+                className={`flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl border font-bold text-xs transition-all cursor-pointer active:scale-95 ${
+                  isDarkMode
+                    ? 'bg-zinc-800/80 border-rose-500/20 text-zinc-200 hover:bg-zinc-800'
+                    : 'bg-white border-zinc-200 text-zinc-700 hover:bg-gray-50/50 shadow-sm'
+                }`}
+              >
+                <ArrowUpAZ className="w-4 h-4 text-orange-500 stroke-[2.5]" />
+                <span>Sort A to Z</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  onSort(openMenuCol, 'desc');
+                  setOpenMenuCol(null);
+                }}
+                className={`flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl border font-bold text-xs transition-all cursor-pointer active:scale-95 ${
+                  isDarkMode
+                    ? 'bg-zinc-800/80 border-rose-500/20 text-zinc-200 hover:bg-zinc-800'
+                    : 'bg-white border-zinc-200 text-zinc-700 hover:bg-gray-50/50 shadow-sm'
+                }`}
+              >
+                <ArrowDownZA className="w-4 h-4 text-orange-500 stroke-[2.5]" />
+                <span>Sort Z to A</span>
+              </button>
+            </div>
+
+            {/* Quick Action Buttons */}
+            <div className="flex items-center justify-between mb-3.5 shrink-0 text-xs">
+              <span className="font-bold text-orange-600 dark:text-orange-400">Checkbox Exclusions:</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const uniques = getUniqueValues(openMenuCol);
+                    const nextUnchecked = { ...uncheckedValues };
+                    nextUnchecked[openMenuCol] = new Set(uniques);
+                    setUncheckedValues(nextUnchecked);
+                  }}
+                  className="px-2.5 py-1 text-[11px] font-bold text-red-500 hover:bg-red-500/10 rounded-lg cursor-pointer"
+                >
+                  Clear All
+                </button>
+                <button
+                  onClick={() => {
+                    onApplyFilter(openMenuCol, '');
+                    const nextUnchecked = { ...uncheckedValues };
+                    delete nextUnchecked[openMenuCol];
+                    setUncheckedValues(nextUnchecked);
+                    setMenuSearchQuery('');
+                    setOpenMenuCol(null);
+                  }}
+                  className="px-2.5 py-1 text-[11px] font-bold text-orange-500 hover:bg-orange-500/10 rounded-lg cursor-pointer"
+                >
+                  Reset Filter
+                </button>
+              </div>
+            </div>
+
+            {/* Search Input for items */}
+            <div className="relative mb-3 shrink-0">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+              <input
+                type="text"
+                placeholder="Search values in column..."
+                value={menuSearchQuery}
+                onChange={(e) => {
+                  setMenuSearchQuery(e.target.value);
+                  onApplyFilter(openMenuCol, e.target.value);
+                }}
+                className={`w-full pl-10 pr-4 py-2.5 rounded-xl border outline-none text-xs font-semibold transition-all ${
+                  isDarkMode
+                    ? 'bg-zinc-800 border-zinc-700 text-white focus:border-orange-500/50'
+                    : 'bg-white border-zinc-200 text-zinc-800 focus:border-orange-500'
+                }`}
+              />
+            </div>
+
+            {/* Scrollable Checkbox List */}
+            <div className="flex-1 overflow-y-auto mb-4 border rounded-2xl border-gray-200 dark:border-zinc-800">
+              <div className={`p-1.5 space-y-0.5 ${
+                isDarkMode ? 'bg-zinc-950/20' : 'bg-gray-50/20'
+              }`}>
+                {/* Select All Row */}
+                <button
+                  onClick={() => {
+                    const uniques = getUniqueValues(openMenuCol);
+                    const isAllUnchecked = uniques.every(val => uncheckedValues[openMenuCol]?.has(val));
+                    const nextUnchecked = { ...uncheckedValues };
+                    
+                    if (isAllUnchecked) {
+                      delete nextUnchecked[openMenuCol];
+                    } else {
+                      nextUnchecked[openMenuCol] = new Set(uniques);
+                    }
+                    setUncheckedValues(nextUnchecked);
+                  }}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 dark:hover:bg-orange-950/20 text-left transition-colors cursor-pointer min-h-[44px]"
+                >
+                  <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0 ${
+                    (!uncheckedValues[openMenuCol] || uncheckedValues[openMenuCol].size === 0)
+                      ? 'bg-orange-500 border-transparent text-white'
+                      : 'border-zinc-350 dark:border-zinc-700 bg-white dark:bg-zinc-800'
+                  }`}>
+                    {(!uncheckedValues[openMenuCol] || uncheckedValues[openMenuCol].size === 0) && (
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    )}
+                  </div>
+                  <span className="font-extrabold text-xs text-orange-600 dark:text-orange-400">Select All Values</span>
+                </button>
+
+                {/* Unique Item list (min touch targets 44px) */}
+                {getUniqueValues(openMenuCol)
+                  .filter(val => val.toLowerCase().includes(menuSearchQuery.toLowerCase()))
+                  .map((val) => {
+                    const isUnchecked = uncheckedValues[openMenuCol]?.has(val);
+                    const isChecked = !isUnchecked;
+                    return (
+                      <button
+                        key={val}
+                        onClick={() => {
+                          const nextUnchecked = { ...uncheckedValues };
+                          if (!nextUnchecked[openMenuCol]) {
+                            nextUnchecked[openMenuCol] = new Set();
+                          }
+                          
+                          if (isUnchecked) {
+                            nextUnchecked[openMenuCol].delete(val);
+                          } else {
+                            nextUnchecked[openMenuCol].add(val);
+                          }
+                          setUncheckedValues(nextUnchecked);
+                        }}
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 dark:hover:bg-orange-950/20 text-left transition-colors cursor-pointer min-h-[44px] ${
+                          isChecked ? 'text-zinc-900 dark:text-zinc-100 font-bold' : 'opacity-50 text-zinc-400'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0 ${
+                          isChecked
+                            ? 'bg-orange-500 border-transparent text-white shadow-sm'
+                            : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
+                        }`}>
+                          {isChecked && (
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          )}
+                        </div>
+                        <span className="truncate text-xs">{val}</span>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* Apply Button */}
+            <button
+              onClick={() => {
+                setOpenMenuCol(null);
+              }}
+              className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-95 cursor-pointer text-white font-extrabold text-xs uppercase tracking-wider text-center shadow-md shadow-orange-500/10 transition-all shrink-0"
+            >
+              Apply Filter Checked Items
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

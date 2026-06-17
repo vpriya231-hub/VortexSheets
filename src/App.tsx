@@ -30,7 +30,7 @@ import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
 import SupabaseAuthModal from './components/SupabaseAuthModal';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import LoginPage from './components/LoginPage';
-import { Menu } from 'lucide-react';
+import { Menu, X, Sparkles } from 'lucide-react';
 
 
 const DEFAULT_ROW_COUNT = 1000;
@@ -1121,23 +1121,69 @@ export default function App() {
           </div>
 
           {isVisualizerOpen && (
-            <div className="shrink-0 p-3 border-b border-gray-200 dark:border-zinc-800 bg-gray-50/20 dark:bg-zinc-950/20">
-              <DataVisualizer
-                data={data}
-                startCell={selection.startCell}
-                endCell={selection.endCell}
-                isDarkMode={isDarkMode}
-                onClose={() => setIsVisualizerOpen(false)}
-                chartType={chartType}
-                setChartType={setChartType}
-                paletteName={paletteName}
-                setPaletteName={setPaletteName}
-                chartTitle={chartTitle}
-                setChartTitle={setChartTitle}
-                chartRange={chartRange}
-                setChartRange={setChartRange}
-              />
-            </div>
+            <>
+              {/* Desktop version: inline container */}
+              <div className="hidden md:block shrink-0 p-3 border-b border-gray-200 dark:border-zinc-800 bg-gray-50/20 dark:bg-zinc-950/20">
+                <DataVisualizer
+                  data={data}
+                  startCell={selection.startCell}
+                  endCell={selection.endCell}
+                  isDarkMode={isDarkMode}
+                  onClose={() => setIsVisualizerOpen(false)}
+                  chartType={chartType}
+                  setChartType={setChartType}
+                  paletteName={paletteName}
+                  setPaletteName={setPaletteName}
+                  chartTitle={chartTitle}
+                  setChartTitle={setChartTitle}
+                  chartRange={chartRange}
+                  setChartRange={setChartRange}
+                />
+              </div>
+
+              {/* Mobile version: touch-friendly, fully responsive full-screen modal design */}
+              <div className="md:hidden fixed inset-0 z-[250] bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-3 animate-fade-in">
+                <div 
+                  className={`w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] border animate-slide-up ${
+                    isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-gray-200 text-zinc-800'
+                  }`}
+                >
+                  <div className={`p-4 border-b flex items-center justify-between shrink-0 ${
+                    isDarkMode ? 'bg-zinc-950/40 border-zinc-800' : 'bg-orange-50/25 border-gray-100'
+                  }`}>
+                    <span className="font-extrabold text-sm tracking-tight text-orange-500 flex items-center gap-1.5">
+                      <Sparkles className="w-4.5 h-4.5" />
+                      Visual Chart View
+                    </span>
+                    <button
+                      onClick={() => setIsVisualizerOpen(false)}
+                      className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                        isDarkMode ? 'border-zinc-800 hover:bg-zinc-850 text-zinc-400' : 'border-gray-200 hover:bg-gray-100 text-gray-500'
+                      }`}
+                    >
+                      <X className="w-4 h-4 stroke-[2.5]" />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <DataVisualizer
+                      data={data}
+                      startCell={selection.startCell}
+                      endCell={selection.endCell}
+                      isDarkMode={isDarkMode}
+                      onClose={() => setIsVisualizerOpen(false)}
+                      chartType={chartType}
+                      setChartType={setChartType}
+                      paletteName={paletteName}
+                      setPaletteName={setPaletteName}
+                      chartTitle={chartTitle}
+                      setChartTitle={setChartTitle}
+                      chartRange={chartRange}
+                      setChartRange={setChartRange}
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
           )}
 
           {/* Interactive Core Spreadsheet Grid area */}
