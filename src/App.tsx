@@ -19,6 +19,7 @@ import {
   isNumeric
 } from './utils/formula';
 import Toolbar from './components/Toolbar';
+import Sidebar from './components/Sidebar';
 import FormulaBar from './components/FormulaBar';
 import Grid from './components/Grid';
 import SheetTabs from './components/SheetTabs';
@@ -29,6 +30,7 @@ import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
 import SupabaseAuthModal from './components/SupabaseAuthModal';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import LoginPage from './components/LoginPage';
+import { Menu } from 'lucide-react';
 
 
 const DEFAULT_ROW_COUNT = 1000;
@@ -109,6 +111,9 @@ export default function App() {
 
   // Help modal state
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
+
+  // Sidebar open/toggle state
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
 
   // Visualizer toggle and details states (fully synchronizable)
   const [isVisualizerOpen, setIsVisualizerOpen] = useState<boolean>(false);
@@ -494,8 +499,8 @@ export default function App() {
   // Auxiliary helper to upload exports directly into a public Supabase Storage bucket and link them
   // to support AppMySite native Android/iOS WebView download interceptors, falling back to local file downloads on web browsers.
   const uploadAndDownloadForWebView = async (blob: Blob, filename: string): Promise<boolean> => {
-    if (!isSupabaseConfigured || !supabaseUser) {
-      console.log('Supabase or user not logged in. Falling back to local data download.');
+    if (!isSupabaseConfigured) {
+      console.log('Supabase not configured. Falling back to local data download.');
       return false; // Tells the caller to execute local fallbacks
     }
 
@@ -509,9 +514,10 @@ export default function App() {
         // Safe to ignore if bucket is already created or if user permissions prevent it
       }
 
-      // 2. Upload file to unique path
+      // 2. Upload file to unique guest or user-based path
       const fileExt = filename.split('.').pop() || 'xlsx';
-      const storagePath = `exports/${supabaseUser.id}/${Date.now()}_${filename.replace(/\s+/g, '_')}`;
+      const userId = supabaseUser ? supabaseUser.id : 'guest';
+      const storagePath = `exports/${userId}/${Date.now()}_${filename.replace(/\s+/g, '_')}`;
       
       const { error: uploadError } = await supabase.storage
         .from(bucketName)
@@ -532,8 +538,24 @@ export default function App() {
 
       if (data && data.publicUrl) {
         console.log('Supabase storage public URL generated successfully:', data.publicUrl);
-        // Open the URL in a separate tab or direct location redirect to enable Android DownloadManager
-        window.location.href = data.publicUrl;
+        
+        // Append download parameter to force header interception in some custom WebViews
+        const downloadUrl = `${data.publicUrl}?download=${encodeURIComponent(filename)}`;
+
+        // Trigger dynamic link click with target="_blank"
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = filename;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Also do a fallback window.location.href assignment to trigger WebView DownloadListener immediately
+        setTimeout(() => {
+          window.location.href = downloadUrl;
+        }, 120);
+
         return true;
       }
       
@@ -595,14 +617,27 @@ export default function App() {
     uploadAndDownloadForWebView(blob, filename).then((success) => {
       if (success) return;
 
-      // Standard fallback
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Standard fallback: convert CSV to Base64 Data URI to prevent Android WebView blockages
+      try {
+        const b64 = btoa(unescape(encodeURIComponent(csvContent)));
+        const dataUri = `data:text/csv;charset=utf-8;base64,${b64}`;
+
+        const link = document.createElement('a');
+        link.href = dataUri;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (err) {
+        console.warn('Base64 encoding failed for CSV, fallback to standard Blob object URL:', err);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
     });
   };
 
@@ -754,6 +789,17 @@ export default function App() {
 
     setSheets((prev) => prev.filter((s) => s.id !== id));
     handleSwitchSheet(nextActiveId);
+  };
+
+  // Perform Log Out from Sidebar
+  const handleSignOut = async () => {
+    if (!isSupabaseConfigured) return;
+    try {
+      await supabase.auth.signOut();
+      alert('Logged out successfully.');
+    } catch (err: any) {
+      console.error(err.message);
+    }
   };
 
   // Create a brand new fresh sheet workspace locally or in the Supabase database
@@ -965,8 +1011,69 @@ export default function App() {
           <div className={`h-screen w-screen overflow-hidden flex flex-col transition-colors duration-150 ${
           isDarkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-white text-zinc-800'
         }`}>
-          {/* Header & Controls toolbar */}
-          <div className="shrink-0">
+          {/* Navigation Sidebar Drawer for Mobile screens */}
+          <Sidebar
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+            activeStyle={activeCellStyle}
+            onStyleChange={handleStyleChange}
+            onImportCSV={handleImportCSV}
+            onExportCSV={handleExportCSV}
+            onExportXLSX={handleExportXLSX}
+            activeCell={activeCellRef}
+            selectedRange={null}
+            onInsertFormula={handleInsertFormula}
+            onClearCell={handleClearCell}
+            onResetGrid={handleResetGrid}
+            isDarkMode={isDarkMode}
+            onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+            onOpenHelp={() => setIsHelpOpen(true)}
+            onSort={handleSort}
+            onApplyFilter={handleApplyFilter}
+            colCount={data.colCount}
+            onToggleVisualizer={() => setIsVisualizerOpen(!isVisualizerOpen)}
+            isVisualizerOpen={isVisualizerOpen}
+            onOpenSupabaseModal={() => {
+              if (supabaseUser) {
+                setIsSupabaseOpen(true);
+              } else {
+                navigate('/login');
+              }
+            }}
+            activeCloudFileName={activeCloudFileName}
+            supabaseUserEmail={supabaseUser?.email || null}
+            onCreateNewSpreadsheet={handleCreateNewSpreadsheet}
+            onSignOut={handleSignOut}
+          />
+
+          {/* Single-row Header for Mobile Screens */}
+          <div className={`md:hidden flex items-center shrink-0 pr-1 transition-colors duration-150 ${
+            isDarkMode ? 'bg-zinc-900' : 'bg-white'
+          }`}>
+            <button
+              id="mobile-hamburger-btn"
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 ml-2 mr-0.5 my-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white cursor-pointer active:scale-95 transition-all shadow-sm flex-shrink-0 flex items-center justify-center"
+              title="Open Menu"
+            >
+              <Menu className="w-4.5 h-4.5" />
+            </button>
+            <div className="flex-1 min-w-0">
+              <FormulaBar
+                activeCellCoord={activeCellRef}
+                value={editingCell === activeCellRef ? editValue : activeCellValue}
+                onChange={(newVal) => {
+                  if (activeCellRef) {
+                    handleStartEditing(activeCellRef, newVal);
+                  }
+                }}
+                isDarkMode={isDarkMode}
+              />
+            </div>
+          </div>
+
+          {/* Header & Controls toolbar for Desktop Screens */}
+          <div className="hidden md:block shrink-0">
             <Toolbar
               activeStyle={activeCellStyle}
               onStyleChange={handleStyleChange}
@@ -999,8 +1106,8 @@ export default function App() {
             />
           </div>
 
-          {/* Formula Recalculator Bar display - positioned right beneath toolbar */}
-          <div className="shrink-0 border-b border-gray-200 dark:border-zinc-800">
+          {/* Formula Recalculator Bar display for Desktop Screens */}
+          <div className="hidden md:block shrink-0 border-b border-gray-200 dark:border-zinc-800">
             <FormulaBar
               activeCellCoord={activeCellRef}
               value={editingCell === activeCellRef ? editValue : activeCellValue}
