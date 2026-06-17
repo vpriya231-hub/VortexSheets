@@ -514,10 +514,10 @@ export default function App() {
         // Safe to ignore if bucket is already created or if user permissions prevent it
       }
 
-      // 2. Upload file to unique guest or user-based path
+      // 2. Upload file to static user-based path to overwrite previous export and save storage space
       const fileExt = filename.split('.').pop() || 'xlsx';
       const userId = supabaseUser ? supabaseUser.id : 'guest';
-      const storagePath = `exports/${userId}/${Date.now()}_${filename.replace(/\s+/g, '_')}`;
+      const storagePath = `exports/${userId}/latest_export.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from(bucketName)
@@ -539,19 +539,27 @@ export default function App() {
       if (data && data.publicUrl) {
         console.log('Supabase storage public URL generated successfully:', data.publicUrl);
         
-        // Append download parameter to force header interception in some custom WebViews
-        const downloadUrl = `${data.publicUrl}?download=${encodeURIComponent(filename)}`;
+        // Append download parameters to force direct attachment headers
+        const downloadUrl = `${data.publicUrl}?download=${encodeURIComponent(filename)}&t=${Date.now()}`;
 
-        // Trigger dynamic link click with target="_blank"
+        // Try to force trigger opening in the device's default system external browser
+        try {
+          window.open(downloadUrl, '_blank');
+        } catch (err) {
+          console.warn('window.open was blocked, falling back to anchor link:', err);
+        }
+
+        // Trigger dynamic link click with target="_blank" and rel noreferrer
         const link = document.createElement('a');
         link.href = downloadUrl;
         link.download = filename;
         link.target = '_blank';
+        link.rel = 'noopener noreferrer';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
-        // Also do a fallback window.location.href assignment to trigger WebView DownloadListener immediately
+        // Fallback context assignment
         setTimeout(() => {
           window.location.href = downloadUrl;
         }, 120);
