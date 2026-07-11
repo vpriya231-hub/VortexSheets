@@ -1079,20 +1079,6 @@ export default function App() {
                 isDarkMode={isDarkMode}
               />
             </div>
-            <button
-              id="mobile-ai-sparkles-btn"
-              onClick={() => setIsAiOpen(!isAiOpen)}
-              className={`p-2.5 mx-2 rounded-xl border cursor-pointer active:scale-95 transition-all shadow-sm shrink-0 flex items-center justify-center relative overflow-hidden ${
-                isAiOpen
-                  ? 'bg-gradient-to-r from-orange-500 to-purple-600 text-white border-transparent'
-                  : isDarkMode
-                    ? 'bg-zinc-800 border-zinc-700 text-purple-400'
-                    : 'bg-purple-50 border-purple-200 text-purple-700'
-              }`}
-              title="V Astra AI Co-pilot"
-            >
-              <Sparkles className="w-4.5 h-4.5" />
-            </button>
           </div>
 
           {/* Header & Controls toolbar for Desktop Screens */}
