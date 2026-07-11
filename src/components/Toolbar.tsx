@@ -54,6 +54,8 @@ interface ToolbarProps {
   activeCloudFileName: string | null;
   supabaseUserEmail: string | null;
   onCreateNewSpreadsheet: () => void;
+  isAiOpen: boolean;
+  onToggleAi: () => void;
 }
 
 // Sleek aesthetic colors for font text color
@@ -100,7 +102,9 @@ export default function Toolbar({
   onOpenSupabaseModal,
   activeCloudFileName,
   supabaseUserEmail,
-  onCreateNewSpreadsheet
+  onCreateNewSpreadsheet,
+  isAiOpen,
+  onToggleAi
 }: ToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -268,6 +272,25 @@ export default function Toolbar({
           >
             <Sparkles className="w-3.5 h-3.5 text-orange-500" />
             <span className="whitespace-nowrap">Data Visualization</span>
+          </button>
+
+          <button
+            id="toolbar-ai-sparkles-btn"
+            onClick={onToggleAi}
+            title="Ask V Astra AI (Co-pilot, Predictions, Autofill)"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer border transition-all shrink-0 shadow-sm relative overflow-hidden group ${
+              isAiOpen
+                ? 'bg-gradient-to-r from-orange-500 to-purple-600 text-white border-transparent'
+                : isDarkMode
+                  ? 'bg-zinc-850 hover:bg-zinc-800 border-zinc-700 text-purple-400 hover:border-purple-500/30'
+                  : 'bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700'
+            }`}
+          >
+            <span className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-orange-500/10 animate-pulse group-hover:scale-105 transition-transform" />
+            <Sparkles className="w-3.5 h-3.5 text-purple-500 animate-bounce group-hover:rotate-12 transition-transform relative z-10" />
+            <span className="whitespace-nowrap relative z-10 flex items-center gap-1">
+              V Astra AI <span className="bg-purple-500 text-[8px] text-white px-1 py-0.2 rounded font-extrabold uppercase font-mono tracking-widest scale-90">Beta</span>
+            </span>
           </button>
 
           <button

@@ -106,7 +106,7 @@ export default function Sidebar({
   activeCloudFileName,
   supabaseUserEmail,
   onCreateNewSpreadsheet,
-  onSignOut
+  onSignOut,
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showTextColor, setShowTextColor] = useState(false);

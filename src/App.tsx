@@ -23,14 +23,16 @@ import Sidebar from './components/Sidebar';
 import FormulaBar from './components/FormulaBar';
 import Grid from './components/Grid';
 import SheetTabs from './components/SheetTabs';
-import AdSensePlaceholder from './components/AdSensePlaceholder';
 import HelpModal from './components/HelpModal';
 import DataVisualizer from './components/DataVisualizer';
 import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
 import SupabaseAuthModal from './components/SupabaseAuthModal';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import LoginPage from './components/LoginPage';
+import ResetPasswordPage from './components/ResetPasswordPage';
+import ImportPage from './components/ImportPage';
 import { Menu, X, Sparkles, Download, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import AiPanel from './components/AiPanel';
 
 
 const DEFAULT_ROW_COUNT = 1000;
@@ -108,6 +110,8 @@ export default function App() {
     const saved = localStorage.getItem('vortex_sheets_dark_mode');
     return saved === 'true';
   });
+
+  const [isAiOpen, setIsAiOpen] = useState<boolean>(false);
 
   // Help modal state
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
@@ -1075,6 +1079,20 @@ export default function App() {
                 isDarkMode={isDarkMode}
               />
             </div>
+            <button
+              id="mobile-ai-sparkles-btn"
+              onClick={() => setIsAiOpen(!isAiOpen)}
+              className={`p-2.5 mx-2 rounded-xl border cursor-pointer active:scale-95 transition-all shadow-sm shrink-0 flex items-center justify-center relative overflow-hidden ${
+                isAiOpen
+                  ? 'bg-gradient-to-r from-orange-500 to-purple-600 text-white border-transparent'
+                  : isDarkMode
+                    ? 'bg-zinc-800 border-zinc-700 text-purple-400'
+                    : 'bg-purple-50 border-purple-200 text-purple-700'
+              }`}
+              title="V Astra AI Co-pilot"
+            >
+              <Sparkles className="w-4.5 h-4.5" />
+            </button>
           </div>
 
           {/* Header & Controls toolbar for Desktop Screens */}
@@ -1108,6 +1126,8 @@ export default function App() {
               activeCloudFileName={activeCloudFileName}
               supabaseUserEmail={supabaseUser?.email || null}
               onCreateNewSpreadsheet={handleCreateNewSpreadsheet}
+              isAiOpen={isAiOpen}
+              onToggleAi={() => setIsAiOpen(!isAiOpen)}
             />
           </div>
 
@@ -1297,6 +1317,21 @@ export default function App() {
             }}
           />
 
+          <AiPanel
+            isOpen={isAiOpen}
+            onClose={() => setIsAiOpen(false)}
+            isDarkMode={isDarkMode}
+            activeSheetData={data}
+            setData={setData}
+            selection={selection}
+            onOpenVisualizer={(chartType, chartTitle, chartRange) => {
+              setChartType(chartType);
+              setChartTitle(chartTitle);
+              setChartRange(chartRange);
+              setIsVisualizerOpen(true);
+            }}
+          />
+
           {/* Workaround export status modal for WebView download interception issues */}
           {exportStatus !== 'idle' && (
             <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in font-sans">
@@ -1410,6 +1445,8 @@ export default function App() {
       } />
       <Route path="/login" element={<LoginPage initialMode="login" isDarkMode={isDarkMode} />} />
       <Route path="/signup" element={<LoginPage initialMode="signup" isDarkMode={isDarkMode} />} />
+      <Route path="/reset-password" element={<ResetPasswordPage isDarkMode={isDarkMode} />} />
+      <Route path="/import" element={<ImportPage isDarkMode={isDarkMode} />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

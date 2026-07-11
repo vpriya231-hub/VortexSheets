@@ -39,7 +39,7 @@ export default function SupabaseAuthModal({
   onLoadSheetsFromCloud,
   onSaveTrigger,
   activeCloudFileId = null,
-  onClearActiveCloudFile
+  onClearActiveCloudFile,
 }: SupabaseAuthModalProps) {
   // Authentication states
   const [session, setSession] = useState<any>(null);
@@ -166,6 +166,7 @@ export default function SupabaseAuthModal({
   // Save/Publish active spreadsheet state to Supabase
   const handlePublishActiveSheet = async () => {
     if (!isSupabaseConfigured || !session) return;
+
     setCloudLoading(true);
     setAuthError(null);
     setAuthSuccess(null);

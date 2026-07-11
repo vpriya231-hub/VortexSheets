@@ -1,1 +1,53 @@
 @import "tailwindcss";
+
+@keyframes animateLeaves {
+  0% {
+    opacity: 0;
+    top: -10%;
+    transform: translateX(20px) rotate(0deg);
+  }
+  10% {
+    opacity: 1;
+  }
+  20% {
+    transform: translateX(-20px) rotate(45deg);
+  }
+  40% {
+    transform: translateX(-20px) rotate(90deg);
+  }
+  60% {
+    transform: translateX(20px) rotate(180deg);
+  }
+  80% {
+    transform: translateX(-20px) rotate(45deg);
+  }
+  100% {
+    top: 110%;
+    transform: translateX(20px) rotate(225deg);
+  }
+}
+
+.leaf-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.leaf-item {
+  position: absolute;
+  display: block;
+}
+
+.leaf-item:nth-child(1) { left: 10%; animation: animateLeaves 15s linear infinite; animation-delay: 0s; }
+.leaf-item:nth-child(2) { left: 25%; animation: animateLeaves 20s linear infinite; animation-delay: -5s; }
+.leaf-item:nth-child(3) { left: 40%; animation: animateLeaves 12s linear infinite; animation-delay: -2s; }
+.leaf-item:nth-child(4) { left: 55%; animation: animateLeaves 18s linear infinite; animation-delay: -7s; }
+.leaf-item:nth-child(5) { left: 70%; animation: animateLeaves 15s linear infinite; animation-delay: -4s; }
+.leaf-item:nth-child(6) { left: 85%; animation: animateLeaves 22s linear infinite; animation-delay: -1s; }
+.leaf-item:nth-child(7) { left: 95%; animation: animateLeaves 14s linear infinite; animation-delay: -6s; }
+.leaf-item:nth-child(8) { left: 5%; animation: animateLeaves 16s linear infinite; animation-delay: -3s; }
