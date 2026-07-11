@@ -33,6 +33,7 @@ import ResetPasswordPage from './components/ResetPasswordPage';
 import ImportPage from './components/ImportPage';
 import { Menu, X, Sparkles, Download, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import AiPanel from './components/AiPanel';
+import { motion, AnimatePresence } from 'motion/react';
 
 
 const DEFAULT_ROW_COUNT = 1000;
@@ -115,6 +116,9 @@ export default function App() {
 
   // Help modal state
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
+
+  // Autosave feedback state
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   // Sidebar open/toggle state
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
@@ -823,6 +827,42 @@ export default function App() {
       ];
 
       if (isSupabaseConfigured && supabaseUser) {
+        // If there is an active spreadsheet in progress, trigger autosave first
+        if (activeCloudFileId) {
+          setAutosaveStatus('saving');
+          try {
+            const cloudPayload = {
+              sheets,
+              chartConfig: {
+                isVisualizerOpen,
+                rangeInput: chartRange,
+                chartType,
+                paletteName,
+                chartTitle
+              }
+            };
+
+            const { error: saveError } = await supabase
+              .from('vortex_sheets')
+              .update({
+                sheets_data: cloudPayload,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', activeCloudFileId);
+
+            if (saveError) throw saveError;
+
+            setAutosaveStatus('saved');
+          } catch (err: any) {
+            setAutosaveStatus('error');
+            console.error('Autosave failed:', err);
+            if (!window.confirm(`Autosave failed: ${err.message || err}. Would you like to proceed with creating a new spreadsheet anyway without saving?`)) {
+              setTimeout(() => setAutosaveStatus('idle'), 3000);
+              return;
+            }
+          }
+        }
+
         const sheetName = window.prompt("Enter a name for the new cloud spreadsheet:", "New Spreadsheet") || "New Spreadsheet";
         if (sheetName) {
           try {
@@ -872,6 +912,9 @@ export default function App() {
             alert(`Error creating cloud spreadsheet: ${err.message || err}`);
           }
         }
+        
+        // Let the "saved" or "error" state linger slightly so the user sees it, then return to idle
+        setTimeout(() => setAutosaveStatus('idle'), 2500);
       } else {
         // Local only mode
         if (window.confirm("To save this new spreadsheet in your cloud database, you need to sign in. Would you like to sign in now? (Click 'Cancel' to create a clean locally saved spreadsheet workspace instead)")) {
@@ -1426,6 +1469,54 @@ export default function App() {
               </div>
             </div>
           )}
+
+          {/* Subtlest autosave progress toast */}
+          <AnimatePresence>
+            {autosaveStatus !== 'idle' && (
+              <motion.div
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                transition={{ duration: 0.23, ease: 'easeOut' }}
+                className="fixed bottom-6 right-6 z-[999] flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border border-transparent backdrop-blur-md"
+                style={{
+                  backgroundColor:
+                    autosaveStatus === 'saving'
+                      ? isDarkMode ? 'rgba(39, 39, 42, 0.95)' : 'rgba(254, 243, 199, 0.95)'
+                      : autosaveStatus === 'saved'
+                        ? isDarkMode ? 'rgba(16, 185, 129, 0.15)' : 'rgba(209, 250, 229, 0.95)'
+                        : isDarkMode ? 'rgba(239, 68, 68, 0.15)' : 'rgba(254, 226, 226, 0.95)',
+                  borderColor:
+                    autosaveStatus === 'saving'
+                      ? isDarkMode ? '#eab308' : '#f59e0b'
+                      : autosaveStatus === 'saved'
+                        ? '#10b981'
+                        : '#ef4444',
+                  color:
+                    autosaveStatus === 'saving'
+                      ? isDarkMode ? '#fef08a' : '#78350f'
+                      : autosaveStatus === 'saved'
+                        ? isDarkMode ? '#34d399' : '#065f46'
+                        : isDarkMode ? '#f87171' : '#991b1b',
+                }}
+              >
+                {autosaveStatus === 'saving' && (
+                  <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+                )}
+                {autosaveStatus === 'saved' && (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                )}
+                {autosaveStatus === 'error' && (
+                  <AlertCircle className="w-4 h-4 text-rose-500" />
+                )}
+                <span className="text-xs font-bold font-sans tracking-tight">
+                  {autosaveStatus === 'saving' && 'Autosaving current progress...'}
+                  {autosaveStatus === 'saved' && 'Progress Saved'}
+                  {autosaveStatus === 'error' && 'Autosave failed'}
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         )
       } />
