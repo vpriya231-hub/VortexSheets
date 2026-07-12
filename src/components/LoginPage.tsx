@@ -11,6 +11,10 @@ interface LoginPageProps {
 export default function LoginPage({ initialMode = 'login', isDarkMode }: LoginPageProps) {
   const navigate = useNavigate();
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgot'>(initialMode);
+  const [forgotStep, setForgotStep] = useState<'email' | 'otp' | 'password'>('email');
+  const [otpToken, setOtpToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -84,17 +88,73 @@ export default function LoginPage({ initialMode = 'login', isDarkMode }: LoginPa
         
         setSuccess('Registration successful! Check your mailbox for verification link or sign in.');
       } else if (authMode === 'forgot') {
-        if (!userEnteredEmail) {
-          setError('Please enter your email address.');
-          setLoading(false);
-          return;
+        if (forgotStep === 'email') {
+          if (!userEnteredEmail) {
+            setError('Please enter your email address.');
+            setLoading(false);
+            return;
+          }
+          const { error: resetErr } = await supabase.auth.signInWithOtp({
+            email: userEnteredEmail,
+            options: { shouldCreateUser: false }
+          });
+          if (resetErr) throw resetErr;
+          
+          setSuccess('6-digit OTP has been sent to your email.');
+          setForgotStep('otp');
+        } else if (forgotStep === 'otp') {
+          if (!otpToken || otpToken.length !== 6) {
+            setError('Please enter the 6-digit OTP code.');
+            setLoading(false);
+            return;
+          }
+          const { error: verifyErr } = await supabase.auth.verifyOtp({
+            email: userEnteredEmail,
+            token: otpToken,
+            type: 'magiclink'
+          });
+          if (verifyErr) throw verifyErr;
+
+          setSuccess('Code verified successfully! Please enter your new password.');
+          setForgotStep('password');
+        } else if (forgotStep === 'password') {
+          if (!newPassword || !confirmNewPassword) {
+            setError('Please fill in both password fields.');
+            setLoading(false);
+            return;
+          }
+          if (newPassword !== confirmNewPassword) {
+            setError('Passwords do not match.');
+            setLoading(false);
+            return;
+          }
+          if (newPassword.length < 6) {
+            setError('Password must be at least 6 characters long.');
+            setLoading(false);
+            return;
+          }
+
+          const { error: updateErr } = await supabase.auth.updateUser({
+            password: newPassword
+          });
+          if (updateErr) throw updateErr;
+
+          setSuccess('Your password has been successfully updated!');
+          
+          // Sign out after reset
+          await supabase.auth.signOut();
+
+          setTimeout(() => {
+            setEmail('');
+            setPassword('');
+            setOtpToken('');
+            setNewPassword('');
+            setConfirmNewPassword('');
+            setForgotStep('email');
+            setAuthMode('login');
+            setSuccess('Your password has been reset successfully. Please sign in with your new password.');
+          }, 2000);
         }
-        const { error: resetErr } = await supabase.auth.resetPasswordForEmail(userEnteredEmail, {
-          redirectTo: `${window.location.origin}/reset-password`
-        });
-        if (resetErr) throw resetErr;
-        
-        setSuccess('A password reset link has been successfully sent to your email. Please click the link to reset your password.');
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred. Please retry.');
@@ -441,7 +501,11 @@ export default function LoginPage({ initialMode = 'login', isDarkMode }: LoginPa
           </h2>
           <p className="text-[#8f2c24]/80 text-xs mt-0.5 leading-relaxed max-w-xs font-medium">
             {authMode === 'forgot'
-              ? 'Enter your Email ID to receive a secure password reset link.'
+              ? forgotStep === 'email'
+                ? 'Enter your Email ID to receive a secure 6-digit OTP code.'
+                : forgotStep === 'otp'
+                  ? 'We have sent a 6-digit OTP to your email. Please enter it below.'
+                  : 'Your OTP is verified! Please enter your strong new password below.'
               : 'Save your spreadsheets, charts, and configurations dynamically in the cloud.'}
           </p>
         </div>
@@ -568,6 +632,10 @@ export default function LoginPage({ initialMode = 'login', isDarkMode }: LoginPa
                     type="button"
                     onClick={() => {
                       setAuthMode('forgot');
+                      setForgotStep('email');
+                      setOtpToken('');
+                      setNewPassword('');
+                      setConfirmNewPassword('');
                       setError(null);
                       setSuccess(null);
                     }}
@@ -581,6 +649,10 @@ export default function LoginPage({ initialMode = 'login', isDarkMode }: LoginPa
                   type="button"
                   onClick={() => {
                     setAuthMode(authMode === 'login' ? 'signup' : 'login');
+                    setForgotStep('email');
+                    setOtpToken('');
+                    setNewPassword('');
+                    setConfirmNewPassword('');
                     setError(null);
                     setSuccess(null);
                   }}
@@ -593,34 +665,125 @@ export default function LoginPage({ initialMode = 'login', isDarkMode }: LoginPa
 
           {authMode === 'forgot' && (
             <>
-              {/* Email Input */}
-              <div className="inputBox">
-                <Mail className="w-5 h-5 absolute left-3.5 top-[12px] text-[#8f2c24] opacity-75" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email ID"
-                />
-              </div>
+              {forgotStep === 'email' && (
+                <>
+                  {/* Email Input */}
+                  <div className="inputBox">
+                    <Mail className="w-5 h-5 absolute left-3.5 top-[12px] text-[#8f2c24] opacity-75" />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Email ID"
+                    />
+                  </div>
 
-              {/* Submit Button */}
-              <div className="inputBox">
-                <button
-                  type="submit"
-                  id="btn"
-                  className="submit-btn"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  ) : (
-                    <Key className="w-4 h-4" />
-                  )}
-                  <span>Send Reset Link</span>
-                </button>
-              </div>
+                  {/* Submit Button */}
+                  <div className="inputBox">
+                    <button
+                      type="submit"
+                      id="btn"
+                      className="submit-btn"
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      ) : (
+                        <Key className="w-4 h-4" />
+                      )}
+                      <span>Generate OTP</span>
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {forgotStep === 'otp' && (
+                <>
+                  {/* 6-digit OTP Input */}
+                  <div className="inputBox">
+                    <Lock className="w-5 h-5 absolute left-3.5 top-[12px] text-[#8f2c24] opacity-75" />
+                    <input
+                      type="text"
+                      maxLength={6}
+                      required
+                      value={otpToken}
+                      onChange={(e) => setOtpToken(e.target.value.replace(/\D/g, ''))}
+                      placeholder="6-Digit OTP Code"
+                      style={{ letterSpacing: '0.25em', textAlign: 'center', fontWeight: 'bold' }}
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="inputBox">
+                    <button
+                      type="submit"
+                      id="btn"
+                      className="submit-btn"
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      ) : (
+                        <Check className="w-4 h-4" />
+                      )}
+                      <span>Verify Code</span>
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {forgotStep === 'password' && (
+                <>
+                  {/* New Password Input */}
+                  <div className="inputBox relative">
+                    <Lock className="w-5 h-5 absolute left-3.5 top-[12px] text-[#8f2c24] opacity-75" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="New Password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-[12px] text-[#8f2c24]/70 hover:text-[#8f2c24] transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  {/* Confirm New Password Input */}
+                  <div className="inputBox">
+                    <Lock className="w-5 h-5 absolute left-3.5 top-[12px] text-[#8f2c24] opacity-75" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      placeholder="Confirm New Password"
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="inputBox">
+                    <button
+                      type="submit"
+                      id="btn"
+                      className="submit-btn"
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      ) : (
+                        <Check className="w-4 h-4" />
+                      )}
+                      <span>Reset Password</span>
+                    </button>
+                  </div>
+                </>
+              )}
 
               {/* Footer Option */}
               <div className="group flex justify-center">
@@ -628,6 +791,10 @@ export default function LoginPage({ initialMode = 'login', isDarkMode }: LoginPa
                   type="button"
                   onClick={() => {
                     setAuthMode('login');
+                    setForgotStep('email');
+                    setOtpToken('');
+                    setNewPassword('');
+                    setConfirmNewPassword('');
                     setError(null);
                     setSuccess(null);
                   }}
