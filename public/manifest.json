@@ -1,0 +1,24 @@
+{
+  "name": "VortexSheets",
+  "short_name": "VortexSheets",
+  "description": "An advanced, high-performance web-based spreadsheet editor with full formula support, rich cell formatting, CSV import/export, and smart columns operations.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#8f2c24",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
