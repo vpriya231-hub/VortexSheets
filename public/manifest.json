@@ -1,14 +1,12 @@
 {
-  "background_color": "#ffffff",
-  "dir": "ltr",
-  "display": "standalone",
-  "name": "vortexsheets",
-  "orientation": "any",
-  "scope": "/",
-  "short_name": "vortexsheets",
+  "name": "VortexSheets",
+  "short_name": "VortexSheets",
+  "description": "High-Performance Online Spreadsheet Editor",
   "start_url": "/",
-  "theme_color": "#ff6200",
-  "id": "app.vortexsheets.android",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
   "icons": [
     {
       "src": "/icon-192.png",
