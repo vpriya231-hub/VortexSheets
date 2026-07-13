@@ -1,12 +1,14 @@
 {
-  "name": "VortexSheets",
-  "short_name": "VortexSheets",
-  "description": "An advanced, high-performance web-based spreadsheet editor with full formula support, rich cell formatting, CSV import/export, and smart columns operations.",
-  "start_url": "/",
-  "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#ff6200",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "vortexsheets",
   "orientation": "any",
+  "scope": "/",
+  "short_name": "vortexsheets",
+  "start_url": "/",
+  "theme_color": "#ff6200",
+  "id": "app.vortexsheets.android",
   "icons": [
     {
       "src": "/icon-192.png",
