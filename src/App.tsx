@@ -815,6 +815,40 @@ export default function App() {
     }
   };
 
+  // Permanently delete user account and purge all data
+  const handleDeleteAccount = async () => {
+    if (!isSupabaseConfigured || !supabaseUser) return;
+    try {
+      const { error } = await supabase.rpc('delete_user_account');
+      if (error) {
+        throw error;
+      }
+      
+      // Successfully deleted user from auth.users on backend.
+      // Now perform client-side sign out and completely clean up local states.
+      await supabase.auth.signOut();
+      setSheets(INITIAL_SHEETS);
+      setActiveSheetId('sheet-1');
+      setActiveCloudFileId(null);
+      setActiveCloudFileName(null);
+      setSelection({
+        startCell: 'A1',
+        endCell: 'A1',
+        activeCell: 'A1',
+      });
+      setEditingCell(null);
+      setEditValue('');
+      setFilterQuery(null);
+      setRowOrder(Array.from({ length: DEFAULT_ROW_COUNT }, (_, i) => i + 1));
+      
+      alert('Your account and all associated spreadsheet data have been permanently deleted.');
+      navigate('/login');
+    } catch (err: any) {
+      console.error('Account deletion error:', err);
+      throw new Error(err.message || 'Error occurred during account purge.');
+    }
+  };
+
   // Create a brand new fresh sheet workspace locally or in the Supabase database
   const handleCreateNewSpreadsheet = async () => {
     if (window.confirm('Are you sure you want to start a brand new spreadsheet? Your current work will remain saved in its respective cloud file.')) {
@@ -1096,6 +1130,7 @@ export default function App() {
             supabaseUserEmail={supabaseUser?.email || null}
             onCreateNewSpreadsheet={handleCreateNewSpreadsheet}
             onSignOut={handleSignOut}
+            onDeleteAccount={handleDeleteAccount}
           />
 
           {/* Single-row Header for Mobile Screens */}

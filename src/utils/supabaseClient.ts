@@ -49,4 +49,16 @@ create policy "Users can update their own sheets" on public.vortex_sheets
 
 create policy "Users can delete their own sheets" on public.vortex_sheets
   for delete using (auth.uid() = user_id);
+
+-- Create secure definer function for account self-deletion cascading
+create or replace function public.delete_user_account()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from auth.users where id = auth.uid();
+end;
+$$;
 `;
